@@ -122,7 +122,21 @@ export default function App() {
     setTimeout(() => setNotification(null), 3500);
   };
 
-  // --- Cart Calculations ---
+  // --- Valid Favorites Count & Items (synchronisés avec les produits existants) ---
+  const validFavoriteProducts = useMemo(() => {
+    return products.filter((p) => favorites.includes(p.id));
+  }, [products, favorites]);
+
+  const validFavoritesCount = validFavoriteProducts.length;
+
+  // Nettoyage automatique des IDs orphelins si des produits ont été supprimés
+  useEffect(() => {
+    const existingProductIds = new Set(products.map((p) => p.id));
+    const cleaned = favorites.filter((id) => existingProductIds.has(id));
+    if (cleaned.length !== favorites.length) {
+      setFavorites(cleaned);
+    }
+  }, [products, favorites]);
   const cartSubtotal = useMemo(() => {
     return cart.reduce((total, item) => {
       const finalPrice = item.price * (1 - (item.discount_percent || 0) / 100);
@@ -349,8 +363,10 @@ export default function App() {
   };
 
   const handleDeleteProduct = async (id) => {
-    if (window.confirm("Supprimer ce produit de la vitrine ?")) {
+    if (window.confirm("Supprimer ce produit de la boutique ?")) {
       setProducts((prev) => prev.filter((p) => p.id !== id));
+      setFavorites((prev) => prev.filter((favId) => favId !== id));
+      setLikedProducts((prev) => prev.filter((likeId) => likeId !== id));
       await api.deleteProduct(id);
       showNotification("Produit retiré du catalogue");
     }
@@ -380,7 +396,7 @@ export default function App() {
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              Boutique Vitrine Ouverte 24/7
+              Boutique Ouverte 24/7
             </span>
             <span className="hidden md:inline text-slate-400">•</span>
             <span className="hidden md:flex items-center gap-1 text-slate-300">
@@ -450,9 +466,9 @@ export default function App() {
                 title="Favoris"
               >
                 <Heart className={`w-4 h-4 ${activeTab === 'favorites' ? 'fill-rose-500 text-rose-500' : ''}`} />
-                {favorites.length > 0 && (
+                {validFavoritesCount > 0 && (
                   <span className="bg-rose-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                    {favorites.length}
+                    {validFavoritesCount}
                   </span>
                 )}
                 <span className="hidden md:inline font-semibold">Favoris</span>
@@ -1370,20 +1386,69 @@ export default function App() {
         </div>
       )}
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 py-10 mt-16 text-slate-500 text-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold">
-              ⚡
+      {/* Footer Moderne & Épuré */}
+      <footer className="bg-slate-900 text-slate-400 py-12 mt-20 border-t border-slate-800 text-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-10">
+            {/* Col 1: Store Branding */}
+            <div className="md:col-span-2 space-y-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md font-bold">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <span className="text-xl font-extrabold text-white tracking-tight">{settings.store_name}</span>
+              </div>
+              <p className="text-slate-400 text-xs leading-relaxed max-w-sm">
+                Votre destination de confiance pour les smartphones, ordinateurs portables, casques audio et accessoires électroniques de dernière génération.
+              </p>
             </div>
-            <span className="font-bold text-slate-800 text-sm">{settings.store_name}</span>
-            <span>— Site Vitrine E-Commerce Haute Performance</span>
+
+            {/* Col 2: Services & Engagement */}
+            <div className="space-y-2.5">
+              <h5 className="font-bold text-white text-sm uppercase tracking-wider">Engagements</h5>
+              <ul className="space-y-1.5 text-xs text-slate-400">
+                <li className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  Produits 100% Authentiques
+                </li>
+                <li className="flex items-center gap-2">
+                  <Truck className="w-4 h-4 text-blue-400" />
+                  Livraison Rapide à Domicile
+                </li>
+                <li className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-400" />
+                  Service Client & Suivi 7j/7
+                </li>
+              </ul>
+            </div>
+
+            {/* Col 3: Contact & Commande */}
+            <div className="space-y-2.5">
+              <h5 className="font-bold text-white text-sm uppercase tracking-wider">Contact Direct</h5>
+              <p className="text-xs text-slate-400">
+                Passez vos commandes ou posez vos questions en direct sur WhatsApp :
+              </p>
+              <a
+                href={`https://wa.me/${(settings.whatsapp_phone || '').replace(/[^0-9]/g, '')}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-colors shadow-md"
+              >
+                <Phone className="w-4 h-4" />
+                +{settings.whatsapp_phone}
+              </a>
+            </div>
           </div>
-          <div className="flex items-center gap-6">
-            <span>Prêt pour déploiement Vercel & GitHub</span>
-            <span className="text-slate-300">•</span>
-            <span>FastAPI Python + React</span>
+
+          <div className="pt-8 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-500 text-xs">
+            <p>© {new Date().getFullYear()} {settings.store_name}. Tous droits réservés.</p>
+            <div className="flex items-center gap-6">
+              <span>Smartphones</span>
+              <span>•</span>
+              <span>Ordinateurs</span>
+              <span>•</span>
+              <span>Accessoires</span>
+            </div>
           </div>
         </div>
       </footer>

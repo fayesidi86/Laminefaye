@@ -110,8 +110,8 @@ def load_data():
                 }
             ],
             "settings": {
-                "whatsapp_phone": "221770000000",
-                "store_name": "ÉlectroTech Store",
+                "whatsapp_phone": "22373022223",
+                "store_name": "Faye Store",
                 "currency": "EUR"
             }
         }
