@@ -72,19 +72,24 @@ export default function App() {
     }
   };
 
-  // Admin Authentication States
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
-    return sessionStorage.getItem('faye_admin_logged') === 'true';
-  });
+  // Admin Authentication States (Toujours verrouillé à l'accès pour une sécurité maximale)
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [adminLoginError, setAdminLoginError] = useState('');
+
+  // Verrouillage automatique immédiat dès qu'on quitte l'onglet admin (accueil, favoris, etc.)
+  useEffect(() => {
+    if (activeTab !== 'admin' && isAdminLoggedIn) {
+      setIsAdminLoggedIn(false);
+      setAdminPassword('');
+    }
+  }, [activeTab, isAdminLoggedIn]);
 
   const handleAdminLogin = (e) => {
     e.preventDefault();
     if (adminEmail.trim().toLowerCase() === 'laminefaye@gmail.com' && adminPassword === 'lamine2026') {
       setIsAdminLoggedIn(true);
-      sessionStorage.setItem('faye_admin_logged', 'true');
       setAdminLoginError('');
       showNotification('Connexion administrateur réussie ! 🔐');
     } else {
@@ -94,7 +99,7 @@ export default function App() {
 
   const handleAdminLogout = () => {
     setIsAdminLoggedIn(false);
-    sessionStorage.removeItem('faye_admin_logged');
+    setAdminPassword('');
     setActiveTab('catalog');
     showNotification('Déconnexion effectuée.');
   };
@@ -836,20 +841,15 @@ export default function App() {
 
               <form onSubmit={handleAdminLogin} className="mt-6 space-y-5">
                 <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider">
-                      Identifiant
-                    </label>
-                    <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                      laminefaye@gmail.com
-                    </span>
-                  </div>
+                  <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-1.5">
+                    Identifiant
+                  </label>
                   <div className="relative">
                     <User className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                       type="email"
                       required
-                      placeholder="laminefaye@gmail.com"
+                      placeholder="Votre adresse email"
                       value={adminEmail}
                       onChange={(e) => setAdminEmail(e.target.value)}
                       className="w-full pl-11 pr-4 py-3 rounded-2xl border-2 border-slate-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 text-slate-900 text-sm font-semibold outline-none transition-all bg-slate-50/50 focus:bg-white"
@@ -858,20 +858,15 @@ export default function App() {
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider">
-                      Mot de passe
-                    </label>
-                    <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                      Code : lamine2026
-                    </span>
-                  </div>
+                  <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-1.5">
+                    Mot de passe
+                  </label>
                   <div className="relative">
                     <Lock className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                       type="password"
                       required
-                      placeholder="Entrez votre mot de passe"
+                      placeholder="Votre mot de passe"
                       value={adminPassword}
                       onChange={(e) => setAdminPassword(e.target.value)}
                       className="w-full pl-11 pr-4 py-3 rounded-2xl border-2 border-slate-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 text-slate-900 text-sm font-semibold outline-none transition-all bg-slate-50/50 focus:bg-white"
