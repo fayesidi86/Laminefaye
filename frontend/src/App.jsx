@@ -61,6 +61,7 @@ export default function App() {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [activeTab]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [cartBounce, setCartBounce] = useState(false);
   const [viewProductModal, setViewProductModal] = useState(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const categoriesScrollRef = useRef(null);
@@ -329,6 +330,9 @@ const compressImageFile = (file) => {
     });
     const safeTitle = (product.title || 'Produit').toString();
     showNotification(`"${safeTitle.slice(0, 25)}..." ajouté au panier !`);
+    // Déclencher l'animation du bouton panier dans la navbar
+    setCartBounce(true);
+    setTimeout(() => setCartBounce(false), 600);
   };
 
   const updateCartQuantity = (id, delta) => {
@@ -678,12 +682,13 @@ const compressImageFile = (file) => {
 
               <button
                 onClick={() => setIsCartOpen(true)}
-                className="relative bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 shadow-sm hover:shadow transition-all hover:scale-[1.02] active:scale-[0.98]"
+                className={`relative bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 shadow-sm hover:shadow transition-all hover:scale-[1.02] active:scale-[0.98]${cartBounce ? ' cart-btn-bounce' : ''}`}
+                title="Voir mon panier"
               >
                 <ShoppingCart className="w-4 h-4" />
                 <span className="hidden sm:inline">Panier</span>
                 {cartTotalItems > 0 && (
-                  <span className="bg-white text-blue-600 font-extrabold w-4 h-4 rounded-full flex items-center justify-center text-[10px]">
+                  <span className={`cart-badge bg-white text-blue-600 font-extrabold w-4 h-4 rounded-full flex items-center justify-center text-[10px]${cartBounce ? ' cart-badge' : ''}`}>
                     {cartTotalItems}
                   </span>
                 )}

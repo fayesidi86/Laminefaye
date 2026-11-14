@@ -182,3 +182,48 @@
     border-right-color: var(--border);
   }
 }
+
+/* ============================================================
+   ANIMATION PANIER — NAVBAR
+   ============================================================ */
+
+/* Rebond + flash doré quand on ajoute au panier */
+@keyframes cart-bounce {
+  0%   { transform: scale(1) rotate(0deg); }
+  15%  { transform: scale(1.35) rotate(-12deg); }
+  30%  { transform: scale(1.25) rotate(10deg); }
+  45%  { transform: scale(1.15) rotate(-6deg); }
+  60%  { transform: scale(1.1)  rotate(4deg); }
+  75%  { transform: scale(1.05) rotate(-2deg); }
+  100% { transform: scale(1)   rotate(0deg); }
+}
+
+/* Badge qui "pop" (grossit puis revient) */
+@keyframes badge-pop {
+  0%   { transform: scale(0.5); opacity: 0; }
+  60%  { transform: scale(1.4); opacity: 1; }
+  80%  { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+
+/* Halo lumineux autour du bouton */
+@keyframes cart-glow {
+  0%   { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); }
+  50%  { box-shadow: 0 0 0 8px rgba(99, 102, 241, 0.0); }
+  100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.0); }
+}
+
+.cart-btn-bounce {
+  animation: cart-bounce 0.55s cubic-bezier(0.36, 0.07, 0.19, 0.97) both,
+             cart-glow   0.55s ease-out both;
+}
+
+.cart-btn-bounce .cart-badge {
+  animation: badge-pop 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+.cart-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
