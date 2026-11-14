@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, ShoppingCart, Heart, Tag, SlidersHorizontal, Plus, 
   Trash2, X, Check, Phone, ArrowRight, ShieldCheck, 
@@ -40,6 +40,14 @@ export default function App() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [viewProductModal, setViewProductModal] = useState(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const categoriesScrollRef = useRef(null);
+
+  const scrollCategories = (direction) => {
+    if (categoriesScrollRef.current) {
+      const scrollAmount = direction === 'left' ? -220 : 220;
+      categoriesScrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
 
   // Admin Form States
   const [newCatName, setNewCatName] = useState('');
@@ -325,136 +333,142 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Navbar */}
-      <nav className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
-          <div className="flex items-center justify-between gap-4">
-            {/* Logo */}
+      {/* Main Compact Navbar */}
+      <nav className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2">
+          <div className="flex items-center justify-between gap-3">
+            {/* Logo Compact */}
             <div 
               onClick={() => { setActiveTab('catalog'); setSelectedCategory('all'); }}
-              className="flex items-center gap-3 cursor-pointer group"
+              className="flex items-center gap-2 cursor-pointer group flex-shrink-0"
             >
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-700 via-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/30 group-hover:scale-105 transition-transform">
-                <Sparkles className="w-6 h-6" />
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-700 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
+                <Sparkles className="w-4 h-4" />
               </div>
-              <div>
-                <h1 className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-blue-900 to-slate-800 bg-clip-text text-transparent">
+              <div className="leading-tight">
+                <h1 className="text-base font-extrabold tracking-tight bg-gradient-to-r from-slate-900 to-blue-900 bg-clip-text text-transparent">
                   {settings.store_name}
                 </h1>
-                <p className="text-[11px] font-semibold tracking-wider uppercase text-blue-600">Électronique & High-Tech</p>
+                <p className="text-[10px] font-semibold text-blue-600 hidden sm:block">High-Tech</p>
               </div>
             </div>
 
-            {/* Search Bar */}
-            <div className="flex-1 max-w-xl mx-2 hidden sm:block">
+            {/* Search Bar Compact */}
+            <div className="flex-1 max-w-md mx-2">
               <div className="relative">
-                <Search className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Rechercher un produit (iPhone, MacBook, Casque, Écran...)..."
+                  placeholder="Rechercher un produit (iPhone, MacBook, Casque...)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-slate-100 hover:bg-slate-50 focus:bg-white text-slate-900 pl-11 pr-10 py-2.5 rounded-full border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none text-sm placeholder:text-slate-400"
+                  className="w-full bg-slate-100 hover:bg-slate-50 focus:bg-white text-slate-900 pl-9 pr-8 py-1.5 rounded-full border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all outline-none text-xs placeholder:text-slate-400"
                 />
                 {searchQuery && (
                   <button 
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Actions: Navigation & Cart */}
-            <div className="flex items-center gap-2">
+            {/* Actions Compact */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               <button
                 onClick={() => setActiveTab(activeTab === 'favorites' ? 'catalog' : 'favorites')}
-                className={`relative p-2.5 rounded-xl border transition-all flex items-center gap-2 ${
+                className={`relative p-2 rounded-lg border transition-all flex items-center gap-1.5 text-xs ${
                   activeTab === 'favorites'
                     ? 'bg-rose-50 border-rose-200 text-rose-600'
                     : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                 }`}
                 title="Favoris"
               >
-                <Heart className={`w-5 h-5 ${activeTab === 'favorites' ? 'fill-rose-500 text-rose-500' : ''}`} />
+                <Heart className={`w-4 h-4 ${activeTab === 'favorites' ? 'fill-rose-500 text-rose-500' : ''}`} />
                 {favorites.length > 0 && (
-                  <span className="bg-rose-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                  <span className="bg-rose-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                     {favorites.length}
                   </span>
                 )}
-                <span className="text-xs font-semibold hidden md:inline">Favoris</span>
+                <span className="hidden md:inline font-semibold">Favoris</span>
               </button>
 
               <button
                 onClick={() => setActiveTab(activeTab === 'admin' ? 'catalog' : 'admin')}
-                className={`p-2.5 rounded-xl border transition-all flex items-center gap-2 text-xs font-semibold ${
+                className={`p-2 rounded-lg border transition-all flex items-center gap-1.5 text-xs font-semibold ${
                   activeTab === 'admin'
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20'
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
                     : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                 }`}
+                title="Administration"
               >
                 <SlidersHorizontal className="w-4 h-4" />
-                <span className="hidden md:inline">Administration</span>
+                <span className="hidden md:inline">Admin</span>
               </button>
 
               <button
                 onClick={() => setIsCartOpen(true)}
-                className="relative bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                className="relative bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 shadow-sm hover:shadow transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
                 <ShoppingCart className="w-4 h-4" />
-                <span className="hidden sm:inline">Mon Panier</span>
+                <span className="hidden sm:inline">Panier</span>
                 {cartTotalItems > 0 && (
-                  <span className="bg-white text-blue-600 font-extrabold w-5 h-5 rounded-full flex items-center justify-center text-xs">
+                  <span className="bg-white text-blue-600 font-extrabold w-4 h-4 rounded-full flex items-center justify-center text-[10px]">
                     {cartTotalItems}
                   </span>
                 )}
               </button>
             </div>
           </div>
-
-          {/* Mobile Search Bar */}
-          <div className="mt-3 sm:hidden">
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Rechercher des produits high-tech..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-100 text-slate-900 pl-9 pr-8 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-blue-500"
-              />
-              {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          </div>
         </div>
 
-        {/* Categories Bar (Scrollable) */}
+        {/* Categories Bar avec Défilement Fluide + Boutons Flèches Gauche/Droite */}
         {activeTab !== 'admin' && (
-          <div className="border-t border-slate-100 bg-slate-50/70">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
-              <Tag className="w-4 h-4 text-slate-400 flex-shrink-0 ml-1" />
-              {categories.map((cat) => {
-                const isActive = selectedCategory === cat.id;
-                return (
-                  <button
-                    key={cat.id}
-                    onClick={() => setSelectedCategory(cat.id)}
-                    className={`whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                      isActive
-                        ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30'
-                        : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:bg-slate-100'
-                    }`}
-                  >
-                    {cat.name}
-                  </button>
-                );
-              })}
+          <div className="border-t border-slate-100 bg-slate-50/90 py-1.5 relative">
+            <div className="max-w-7xl mx-auto px-2 sm:px-4 flex items-center gap-1.5">
+              {/* Flèche Gauche */}
+              <button
+                onClick={() => scrollCategories('left')}
+                className="p-1 rounded-full bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:bg-slate-100 shadow-xs flex-shrink-0 transition-colors"
+                title="Défiler vers la gauche"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              {/* Conteneur de Défilement Horizontal */}
+              <div
+                ref={categoriesScrollRef}
+                className="flex items-center gap-1.5 overflow-x-auto scroll-smooth no-scrollbar py-0.5 flex-1"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {categories.map((cat) => {
+                  const isActive = selectedCategory === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => setSelectedCategory(cat.id)}
+                      className={`whitespace-nowrap px-3.5 py-1 rounded-full text-xs font-semibold transition-all flex-shrink-0 ${
+                        isActive
+                          ? 'bg-blue-600 text-white shadow-xs font-bold'
+                          : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:bg-slate-100'
+                      }`}
+                    >
+                      {cat.name}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Flèche Droite */}
+              <button
+                onClick={() => scrollCategories('right')}
+                className="p-1 rounded-full bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:bg-slate-100 shadow-xs flex-shrink-0 transition-colors"
+                title="Défiler vers la droite"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
           </div>
         )}
