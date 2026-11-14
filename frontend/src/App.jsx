@@ -803,55 +803,59 @@ export default function App() {
         {activeTab === 'admin' && (
           !isAdminLoggedIn ? (
             /* Écran de Connexion Sécurisé */
-            <div className="max-w-md mx-auto my-12 bg-white p-8 rounded-3xl border border-slate-200 shadow-xl animate-scaleUp">
-              <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 mx-auto mb-4 shadow-sm">
-                <Lock className="w-7 h-7" />
+            <div className="max-w-md mx-auto my-12 bg-white p-8 sm:p-10 rounded-3xl border-2 border-slate-300 shadow-2xl animate-scaleUp">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white mx-auto mb-4 shadow-lg shadow-blue-500/30">
+                <Lock className="w-8 h-8" />
               </div>
-              <h3 className="text-xl font-extrabold text-slate-900 text-center">Accès Administrateur</h3>
-              <p className="text-xs text-slate-500 text-center mt-1">
-                Espace réservé à la gestion de Faye Store. Veuillez entrer vos identifiants uniques.
+              <h3 className="text-2xl font-black text-slate-900 text-center tracking-tight">Accès Administrateur</h3>
+              <p className="text-xs text-slate-500 text-center mt-1.5 font-medium">
+                Espace sécurisé de gestion. Entrez vos identifiants pour continuer.
               </p>
 
               {adminLoginError && (
-                <div className="mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold text-center">
-                  {adminLoginError}
+                <div className="mt-5 p-3.5 rounded-2xl bg-rose-50 border-2 border-rose-300 text-rose-700 text-xs font-bold text-center">
+                  ⚠️ {adminLoginError}
                 </div>
               )}
 
-              <form onSubmit={handleAdminLogin} className="mt-6 space-y-4">
+              <form onSubmit={handleAdminLogin} className="mt-6 space-y-5">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Identifiant (Email)</label>
+                  <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-1.5">
+                    Identifiant
+                  </label>
                   <div className="relative">
-                    <User className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <User className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                       type="email"
                       required
-                      placeholder="laminefaye@gmail.com"
+                      placeholder="Votre adresse email"
                       value={adminEmail}
                       onChange={(e) => setAdminEmail(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                      className="w-full pl-11 pr-4 py-3 rounded-2xl border-2 border-slate-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 text-slate-900 text-sm font-semibold outline-none transition-all bg-slate-50/50 focus:bg-white"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Mot de passe</label>
+                  <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-1.5">
+                    Mot de passe
+                  </label>
                   <div className="relative">
-                    <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <Lock className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                       type="password"
                       required
-                      placeholder="••••••••"
+                      placeholder="Votre mot de passe"
                       value={adminPassword}
                       onChange={(e) => setAdminPassword(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                      className="w-full pl-11 pr-4 py-3 rounded-2xl border-2 border-slate-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 text-slate-900 text-sm font-semibold outline-none transition-all bg-slate-50/50 focus:bg-white"
                     />
                   </div>
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm shadow-md shadow-blue-500/30 transition-all hover:scale-[1.01]"
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-sm shadow-lg shadow-blue-500/30 transition-all hover:scale-[1.01] active:scale-[0.99] uppercase tracking-wider"
                 >
                   Se connecter
                 </button>
@@ -860,7 +864,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setActiveTab('catalog')}
-                    className="text-xs text-slate-400 hover:text-slate-600 font-medium"
+                    className="text-xs text-slate-500 hover:text-slate-800 font-bold transition-colors"
                   >
                     ← Retourner à la boutique
                   </button>
