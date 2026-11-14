@@ -121,7 +121,7 @@ export default function App() {
   const [whatsappPhoneInput, setWhatsappPhoneInput] = useState(settings.whatsapp_phone || '221770000000');
   const [notification, setNotification] = useState(null);
 
-  // Sync to localStorage
+  // Sync to Backend en priorité, puis fallback localStorage
   useEffect(() => {
     localStorage.setItem('electrotech_categories', JSON.stringify(categories));
   }, [categories]);
@@ -146,24 +146,34 @@ export default function App() {
     localStorage.setItem('electrotech_settings', JSON.stringify(settings));
   }, [settings]);
 
-  // Try fetching from backend on mount
-  useEffect(() => {
-    async function loadBackendData() {
+  // Synchronisation continue et automatique avec l'API en ligne (téléphone <-> ordi)
+  const syncWithBackend = async () => {
+    try {
       const cats = await api.getCategories();
-      if (cats && cats.length > 0) {
+      if (cats && Array.isArray(cats)) {
         setCategories([{ id: 'all', name: 'Tous les produits' }, ...cats]);
       }
       const prods = await api.getProducts();
-      if (prods && prods.length > 0) {
+      if (prods && Array.isArray(prods)) {
         setProducts(prods);
       }
       const sett = await api.getSettings();
       if (sett) {
-        setSettings(sett);
-        setWhatsappPhoneInput(sett.whatsapp_phone);
+        setSettings(prev => ({ ...prev, ...sett }));
+        if (sett.whatsapp_phone) {
+          setWhatsappPhoneInput(sett.whatsapp_phone);
+        }
       }
+    } catch {
+      // mode hors-ligne silencieux
     }
-    loadBackendData();
+  };
+
+  useEffect(() => {
+    syncWithBackend();
+    // Rafraîchissement automatique toutes les 10 secondes pour voir les nouveaux ajouts faits sur mobile
+    const interval = setInterval(syncWithBackend, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const showNotification = (msg) => {
@@ -391,8 +401,12 @@ export default function App() {
       is_featured: prodForm.is_featured
     };
 
-    setProducts((prev) => [newProd, ...prev]);
-    await api.addProduct(newProd);
+    const added = await api.addProduct(newProd);
+    if (added && added.id) {
+      setProducts((prev) => [added, ...prev.filter(p => p.id !== newProd.id)]);
+    } else {
+      setProducts((prev) => [newProd, ...prev]);
+    }
 
     // Reset Form
     setProdForm({
