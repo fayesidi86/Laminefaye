@@ -970,9 +970,9 @@ export default function App() {
 
             {/* Manage Categories Section */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
-                  <Plus className="w-4 h-4 text-blue-600" />
+              <div className="bg-white p-6 rounded-3xl border-2 border-slate-300 shadow-md">
+                <h4 className="text-sm font-black text-slate-900 mb-3 flex items-center gap-2">
+                  <Plus className="w-5 h-5 text-blue-600" />
                   Ajouter une catégorie
                 </h4>
                 <form onSubmit={handleAddCategory} className="space-y-3">
@@ -981,30 +981,30 @@ export default function App() {
                     placeholder="Nom (Ex: Téléviseurs 4K, Drones...)"
                     value={newCatName}
                     onChange={(e) => setNewCatName(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 rounded-2xl border-2 border-slate-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 text-slate-900 font-bold text-sm outline-none transition-all bg-slate-50 focus:bg-white"
                   />
                   <button
                     type="submit"
-                    className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md transition-all"
+                    className="w-full py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-wider shadow-md shadow-blue-500/20 transition-all hover:scale-[1.01]"
                   >
                     Créer la catégorie
                   </button>
                 </form>
 
                 <div className="mt-6">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">
                     Catégories existantes ({categories.length - 1})
                   </span>
                   <div className="mt-2 space-y-2 max-h-56 overflow-y-auto pr-1">
                     {categories.filter(c => c.id !== 'all').map((c) => (
-                      <div key={c.id} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100 text-xs">
-                        <span className="font-semibold text-slate-700">{c.name}</span>
+                      <div key={c.id} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                        <span className="font-bold text-slate-800">{c.name}</span>
                         <button
                           onClick={() => handleDeleteCategory(c.id)}
-                          className="text-slate-400 hover:text-rose-600 p-1"
+                          className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors"
                           title="Supprimer la catégorie"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     ))}
@@ -1013,39 +1013,43 @@ export default function App() {
               </div>
 
               {/* Create Product Form */}
-              <div className="md:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-blue-600" />
+              <div className="md:col-span-2 bg-white p-6 sm:p-7 rounded-3xl border-2 border-slate-300 shadow-md">
+                <h4 className="text-base font-black text-slate-900 mb-4 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-blue-600" />
                   Publier un nouveau produit avec photos & réduction
                 </h4>
 
                 <form onSubmit={handleAddProduct} className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Nom du produit *</label>
+                      <label className="block text-xs font-black text-slate-800 uppercase tracking-wider mb-1.5">
+                        Nom du produit *
+                      </label>
                       <input
                         type="text"
                         placeholder="Ex: Écran Gamer 27 pouces 165Hz"
                         value={prodForm.title}
                         onChange={(e) => setProdForm({ ...prodForm, title: e.target.value })}
                         required
-                        className="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-3 rounded-2xl border-2 border-slate-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 text-slate-900 font-bold text-sm outline-none transition-all bg-slate-50 focus:bg-white"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Catégorie cible *</label>
+                      <label className="block text-xs font-black text-slate-800 uppercase tracking-wider mb-1.5">
+                        Catégorie cible *
+                      </label>
                       <select
                         value={prodForm.category}
                         onChange={(e) => setProdForm({ ...prodForm, category: e.target.value })}
                         required
-                        className="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        className="w-full px-4 py-3 rounded-2xl border-2 border-slate-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 text-slate-900 font-bold text-sm outline-none transition-all bg-slate-50 focus:bg-white"
                       >
                         <option value="">Sélectionner une catégorie existante...</option>
                         {categories.filter(c => c.id !== 'all').map((c) => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
-                        <option value="__new__" className="text-blue-600 font-bold">
+                        <option value="__new__" className="text-blue-600 font-black">
                           ➕ + Créer une nouvelle catégorie directement...
                         </option>
                       </select>
@@ -1059,10 +1063,10 @@ export default function App() {
                             value={inlineNewCategory}
                             onChange={(e) => setInlineNewCategory(e.target.value)}
                             required
-                            className="w-full px-4 py-2 rounded-xl border-2 border-blue-500 bg-blue-50/40 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-medium"
+                            className="w-full px-4 py-3 rounded-2xl border-2 border-blue-600 bg-blue-50 text-slate-900 font-black text-sm outline-none focus:ring-4 focus:ring-blue-200"
                           />
-                          <p className="text-[11px] text-blue-600 mt-1">
-                            Cette catégorie sera automatiquement créée et ajoutée à la boutique !
+                          <p className="text-[11px] text-blue-700 font-bold mt-1">
+                            ✓ Cette catégorie sera automatiquement créée et ajoutée à la boutique !
                           </p>
                         </div>
                       )}
@@ -1071,19 +1075,23 @@ export default function App() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Prix de base ({settings.currency}) *</label>
+                      <label className="block text-xs font-black text-slate-800 uppercase tracking-wider mb-1.5">
+                        Prix de base ({settings.currency}) *
+                      </label>
                       <input
                         type="number"
                         placeholder="Ex: 250000"
                         value={prodForm.price}
                         onChange={(e) => setProdForm({ ...prodForm, price: e.target.value })}
                         required
-                        className="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-3 rounded-2xl border-2 border-slate-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 text-slate-900 font-bold text-sm outline-none transition-all bg-slate-50 focus:bg-white"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Réduction (%) optionnelle</label>
+                      <label className="block text-xs font-black text-slate-800 uppercase tracking-wider mb-1.5">
+                        Réduction (%) optionnelle
+                      </label>
                       <input
                         type="number"
                         min="0"
@@ -1091,47 +1099,51 @@ export default function App() {
                         placeholder="Ex: 15"
                         value={prodForm.discount_percent}
                         onChange={(e) => setProdForm({ ...prodForm, discount_percent: e.target.value })}
-                        className="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-3 rounded-2xl border-2 border-slate-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 text-slate-900 font-bold text-sm outline-none transition-all bg-slate-50 focus:bg-white"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Stock disponible</label>
+                      <label className="block text-xs font-black text-slate-800 uppercase tracking-wider mb-1.5">
+                        Stock disponible
+                      </label>
                       <input
                         type="number"
                         placeholder="Ex: 10"
                         value={prodForm.stock}
                         onChange={(e) => setProdForm({ ...prodForm, stock: e.target.value })}
-                        className="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-3 rounded-2xl border-2 border-slate-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 text-slate-900 font-bold text-sm outline-none transition-all bg-slate-50 focus:bg-white"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Description détaillée du produit</label>
+                    <label className="block text-xs font-black text-slate-800 uppercase tracking-wider mb-1.5">
+                      Description détaillée du produit
+                    </label>
                     <textarea
                       rows="3"
                       placeholder="Spécifications techniques, processeur, mémoire, autonomie..."
                       value={prodForm.description}
                       onChange={(e) => setProdForm({ ...prodForm, description: e.target.value })}
-                      className="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 rounded-2xl border-2 border-slate-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 text-slate-900 font-semibold text-sm outline-none transition-all bg-slate-50 focus:bg-white"
                     ></textarea>
                   </div>
 
                   {/* Photos du produit : Upload depuis la Galerie Locale + Liens URLs */}
-                  <div className="space-y-3 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                  <div className="space-y-3 p-5 rounded-2xl bg-blue-50/50 border-2 border-blue-200">
                     <div>
-                      <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-2">
-                        <Upload className="w-4 h-4 text-blue-600" />
-                        Option 1 : Ajouter des photos directement depuis votre galerie / téléphone / PC
+                      <label className="block text-xs font-black text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <Upload className="w-5 h-5 text-blue-600" />
+                        Photos : Sélectionner directement depuis votre galerie / téléphone / PC
                       </label>
-                      <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-blue-300 hover:border-blue-500 rounded-2xl cursor-pointer bg-white hover:bg-blue-50/50 transition-all">
+                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-blue-400 hover:border-blue-600 rounded-2xl cursor-pointer bg-white hover:bg-blue-50 transition-all">
                         <div className="flex flex-col items-center justify-center pt-2 pb-2">
-                          <ImageIcon className="w-8 h-8 text-blue-500 mb-1" />
-                          <p className="text-xs text-slate-700 font-semibold">
+                          <ImageIcon className="w-9 h-9 text-blue-600 mb-1" />
+                          <p className="text-sm text-slate-800 font-black">
                             Cliquez pour choisir des photos de votre galerie
                           </p>
-                          <p className="text-[11px] text-slate-400">
+                          <p className="text-xs text-slate-500 font-medium">
                             Sélection multiple possible (PNG, JPG, JPEG, WEBP)
                           </p>
                         </div>
@@ -1147,20 +1159,20 @@ export default function App() {
                       {/* Aperçu des photos sélectionnées depuis la galerie */}
                       {uploadedGalleryImages.length > 0 && (
                         <div className="mt-3">
-                          <span className="text-[11px] font-bold text-slate-600">
-                            Photos sélectionnées depuis votre galerie ({uploadedGalleryImages.length}) :
+                          <span className="text-xs font-black text-slate-800">
+                            Photos prêtes à être publiées ({uploadedGalleryImages.length}) :
                           </span>
-                          <div className="flex flex-wrap gap-2 mt-1.5">
+                          <div className="flex flex-wrap gap-2.5 mt-2">
                             {uploadedGalleryImages.map((imgSrc, idx) => (
-                              <div key={idx} className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-300 group shadow-xs">
+                              <div key={idx} className="relative w-18 h-18 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-md group">
                                 <img src={imgSrc} alt="" className="w-full h-full object-cover" />
                                 <button
                                   type="button"
                                   onClick={() => removeGalleryImage(idx)}
-                                  className="absolute top-1 right-1 bg-rose-600 text-white rounded-full p-0.5 shadow-sm opacity-90 hover:opacity-100"
+                                  className="absolute top-1 right-1 bg-rose-600 hover:bg-rose-700 text-white rounded-full p-1 shadow-md transition-transform hover:scale-110"
                                   title="Retirer cette photo"
                                 >
-                                  <X className="w-3 h-3" />
+                                  <X className="w-3.5 h-3.5" />
                                 </button>
                               </div>
                             ))}
@@ -1169,36 +1181,36 @@ export default function App() {
                       )}
                     </div>
 
-                    <div className="pt-2 border-t border-slate-200">
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Option 2 : Ou ajouter des liens d'images en ligne (URLs)
+                    <div className="pt-3 border-t border-blue-200">
+                      <label className="block text-xs font-black text-slate-800 uppercase tracking-wider mb-1.5">
+                        Ou coller des liens d'images externes (URLs - Optionnel)
                       </label>
                       <textarea
                         rows="2"
                         placeholder="https://images.unsplash.com/...&#10;https://..."
                         value={prodForm.imagesText}
                         onChange={(e) => setProdForm({ ...prodForm, imagesText: e.target.value })}
-                        className="w-full px-4 py-2 rounded-xl border border-slate-200 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        className="w-full px-4 py-2.5 rounded-2xl border-2 border-slate-300 focus:border-blue-600 text-slate-900 font-mono text-xs outline-none bg-white"
                       ></textarea>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 pt-1">
                     <input
                       type="checkbox"
                       id="is_featured"
                       checked={prodForm.is_featured}
                       onChange={(e) => setProdForm({ ...prodForm, is_featured: e.target.checked })}
-                      className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                      className="w-5 h-5 text-blue-600 rounded border-slate-400 focus:ring-blue-500 cursor-pointer"
                     />
-                    <label htmlFor="is_featured" className="text-xs font-medium text-slate-700">
+                    <label htmlFor="is_featured" className="text-xs font-bold text-slate-800 cursor-pointer">
                       Mettre en avant sur la boutique (Badge Top Vente)
                     </label>
                   </div>
 
                   <button
                     type="submit"
-                    className="w-full py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-sm shadow-md shadow-blue-500/30 hover:shadow-lg transition-all"
+                    className="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-sm uppercase tracking-wider shadow-lg shadow-blue-500/30 hover:shadow-xl transition-all hover:scale-[1.01]"
                   >
                     Publier l'article dans la boutique
                   </button>
