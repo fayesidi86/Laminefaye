@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, ShoppingCart, Heart, Tag, SlidersHorizontal, Plus, 
   Trash2, X, Check, Phone, ArrowRight, ShieldCheck, 
-  Truck, Clock, Sparkles, ChevronLeft, ChevronRight, Eye, RefreshCw, Send
+  Truck, Clock, Sparkles, ChevronLeft, ChevronRight, Eye, RefreshCw, Send,
+  Upload, Image as ImageIcon
 } from 'lucide-react';
 import { INITIAL_DATA } from './mockData';
 import { api } from './api';
@@ -51,6 +52,8 @@ export default function App() {
 
   // Admin Form States
   const [newCatName, setNewCatName] = useState('');
+  const [inlineNewCategory, setInlineNewCategory] = useState('');
+  const [uploadedGalleryImages, setUploadedGalleryImages] = useState([]);
   const [prodForm, setProdForm] = useState({
     title: '',
     category: '',
@@ -240,28 +243,62 @@ export default function App() {
     }
   };
 
+  // --- Image Upload Handler (Galerie / Fichiers locaux) ---
+  const handleImageFilesUpload = (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setUploadedGalleryImages((prev) => [...prev, event.target.result]);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    showNotification(`${files.length} photo(s) chargée(s) depuis votre galerie !`);
+  };
+
+  const removeGalleryImage = (indexToRemove) => {
+    setUploadedGalleryImages((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
   const handleAddProduct = async (e) => {
     e.preventDefault();
-    if (!prodForm.title || !prodForm.price || !prodForm.category) {
-      alert("Veuillez remplir au moins le titre, le prix et la catégorie");
+    
+    // Si l'administrateur a saisi une nouvelle catégorie directement lors de la publication
+    let selectedCat = prodForm.category;
+    if (prodForm.category === '__new__' && inlineNewCategory.trim()) {
+      const catId = inlineNewCategory.toLowerCase().trim().replace(/\s+/g, '-');
+      const newCatObj = { id: catId, name: inlineNewCategory.trim() };
+      setCategories((prev) => [...prev, newCatObj]);
+      api.addCategory(inlineNewCategory.trim());
+      selectedCat = catId;
+    }
+
+    if (!prodForm.title || !prodForm.price || !selectedCat || selectedCat === '__new__') {
+      alert("Veuillez remplir au moins le titre, le prix et choisir/créer une catégorie valide.");
       return;
     }
 
-    const imagesList = prodForm.imagesText
+    const textUrls = prodForm.imagesText
       .split('\n')
       .map((url) => url.trim())
       .filter((url) => url.length > 0);
+
+    // Combiner les images de la galerie locale et les URLs textuelles
+    const combinedImages = [...uploadedGalleryImages, ...textUrls];
 
     const fallbackImg = "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=800&q=80";
 
     const newProd = {
       id: `prod-${Date.now()}`,
       title: prodForm.title,
-      category: prodForm.category,
+      category: selectedCat,
       price: parseFloat(prodForm.price),
       discount_percent: parseFloat(prodForm.discount_percent) || 0,
       description: prodForm.description,
-      images: imagesList.length > 0 ? imagesList : [fallbackImg],
+      images: combinedImages.length > 0 ? combinedImages : [fallbackImg],
       stock: parseInt(prodForm.stock) || 10,
       likes: 0,
       is_featured: prodForm.is_featured
@@ -281,8 +318,10 @@ export default function App() {
       stock: 10,
       is_featured: false
     });
+    setInlineNewCategory('');
+    setUploadedGalleryImages([]);
 
-    showNotification("Produit publié avec succès !");
+    showNotification("Produit publié avec succès avec ses photos !");
   };
 
   const handleDeleteProduct = async (id) => {
@@ -791,11 +830,31 @@ export default function App() {
                         required
                         className="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                       >
-                        <option value="">Sélectionner une catégorie...</option>
+                        <option value="">Sélectionner une catégorie existante...</option>
                         {categories.filter(c => c.id !== 'all').map((c) => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
+                        <option value="__new__" className="text-blue-600 font-bold">
+                          ➕ + Créer une nouvelle catégorie directement...
+                        </option>
                       </select>
+
+                      {/* Champ pour nouvelle catégorie directement dans la publication */}
+                      {prodForm.category === '__new__' && (
+                        <div className="mt-2 animate-fadeIn">
+                          <input
+                            type="text"
+                            placeholder="Entrez le nom de la nouvelle catégorie..."
+                            value={inlineNewCategory}
+                            onChange={(e) => setInlineNewCategory(e.target.value)}
+                            required
+                            className="w-full px-4 py-2 rounded-xl border-2 border-blue-500 bg-blue-50/40 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-medium"
+                          />
+                          <p className="text-[11px] text-blue-600 mt-1">
+                            Cette catégorie sera automatiquement créée et ajoutée à la boutique !
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -848,20 +907,69 @@ export default function App() {
                     ></textarea>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      URLs des photos (Une URL par ligne pour plusieurs images)
-                    </label>
-                    <textarea
-                      rows="3"
-                      placeholder="https://images.unsplash.com/...&#10;https://images.unsplash.com/..."
-                      value={prodForm.imagesText}
-                      onChange={(e) => setProdForm({ ...prodForm, imagesText: e.target.value })}
-                      className="w-full px-4 py-2 rounded-xl border border-slate-200 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    ></textarea>
-                    <span className="text-[11px] text-slate-400">
-                      Vous pouvez coller plusieurs liens d'images séparés par une touche Entrée.
-                    </span>
+                  {/* Photos du produit : Upload depuis la Galerie Locale + Liens URLs */}
+                  <div className="space-y-3 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-2">
+                        <Upload className="w-4 h-4 text-blue-600" />
+                        Option 1 : Ajouter des photos directement depuis votre galerie / téléphone / PC
+                      </label>
+                      <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-blue-300 hover:border-blue-500 rounded-2xl cursor-pointer bg-white hover:bg-blue-50/50 transition-all">
+                        <div className="flex flex-col items-center justify-center pt-2 pb-2">
+                          <ImageIcon className="w-8 h-8 text-blue-500 mb-1" />
+                          <p className="text-xs text-slate-700 font-semibold">
+                            Cliquez pour choisir des photos de votre galerie
+                          </p>
+                          <p className="text-[11px] text-slate-400">
+                            Sélection multiple possible (PNG, JPG, JPEG, WEBP)
+                          </p>
+                        </div>
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*"
+                          onChange={handleImageFilesUpload}
+                          className="hidden"
+                        />
+                      </label>
+
+                      {/* Aperçu des photos sélectionnées depuis la galerie */}
+                      {uploadedGalleryImages.length > 0 && (
+                        <div className="mt-3">
+                          <span className="text-[11px] font-bold text-slate-600">
+                            Photos sélectionnées depuis votre galerie ({uploadedGalleryImages.length}) :
+                          </span>
+                          <div className="flex flex-wrap gap-2 mt-1.5">
+                            {uploadedGalleryImages.map((imgSrc, idx) => (
+                              <div key={idx} className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-300 group shadow-xs">
+                                <img src={imgSrc} alt="" className="w-full h-full object-cover" />
+                                <button
+                                  type="button"
+                                  onClick={() => removeGalleryImage(idx)}
+                                  className="absolute top-1 right-1 bg-rose-600 text-white rounded-full p-0.5 shadow-sm opacity-90 hover:opacity-100"
+                                  title="Retirer cette photo"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-200">
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Option 2 : Ou ajouter des liens d'images en ligne (URLs)
+                      </label>
+                      <textarea
+                        rows="2"
+                        placeholder="https://images.unsplash.com/...&#10;https://..."
+                        value={prodForm.imagesText}
+                        onChange={(e) => setProdForm({ ...prodForm, imagesText: e.target.value })}
+                        className="w-full px-4 py-2 rounded-xl border border-slate-200 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      ></textarea>
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-3">
