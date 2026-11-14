@@ -1,4 +1,4 @@
-# ⚡ ÉlectroTech Store — Site Vitrine E-Commerce Électronique
+# ⚡ Faye Store — E-Commerce Électronique & High-Tech
 
 Une application web e-commerce moderne, rapide et responsive conçue avec **React** (Frontend) et **Python FastAPI** (Backend).
 
@@ -38,7 +38,7 @@ LAMINEFAYE/
 │   ├── src/
 │   │   ├── App.jsx          # Interface React complète avec boutique, panier, admin
 │   │   ├── api.js           # Client API avec fallback offline
-│   │   ├── mockData.js      # Données initiales et vitrine
+│   │   ├── mockData.js      # Données initiales de la boutique
 │   │   └── main.jsx         # Point d'entrée React
 │   ├── package.json         # Dépendances Node.js (Vite, Tailwind, Lucide)
 │   ├── vite.config.js       # Configuration Vite & Proxy
@@ -95,4 +95,4 @@ git push -u origin main
 2. Cliquez sur **"Add New Project"** et importez le dépôt GitHub.
 3. Définissez le **Root Directory** sur `frontend`.
 4. Le framework sera automatiquement détecté en **Vite**.
-5. Cliquez sur **Deploy** ! Votre site vitrine sera accessible en ligne gratuitement avec certificat SSL HTTPS.
+5. Cliquez sur **Deploy** ! Votre boutique en ligne sera accessible en direct gratuitement avec certificat SSL HTTPS.

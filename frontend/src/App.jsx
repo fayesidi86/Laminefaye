@@ -581,7 +581,7 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Banner Hero Vitrine */}
+        {/* Banner Hero */}
         {activeTab === 'catalog' && selectedCategory === 'all' && !searchQuery && (
           <div className="relative mb-10 rounded-3xl overflow-hidden bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 text-white shadow-2xl p-8 sm:p-12">
             <div className="relative z-10 max-w-2xl">
@@ -1172,7 +1172,7 @@ export default function App() {
                       className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
                     />
                     <label htmlFor="is_featured" className="text-xs font-medium text-slate-700">
-                      Mettre en avant sur la vitrine (Badge Top Vente)
+                      Mettre en avant sur la boutique (Badge Top Vente)
                     </label>
                   </div>
 
