@@ -3,7 +3,7 @@ import {
   Search, ShoppingCart, Heart, Tag, SlidersHorizontal, Plus, 
   Trash2, X, Check, Phone, ArrowRight, ShieldCheck, 
   Truck, Clock, Sparkles, ChevronLeft, ChevronRight, Eye, RefreshCw, Send,
-  Upload, Image as ImageIcon, Bookmark
+  Upload, Image as ImageIcon, Bookmark, Lock, LogOut, User
 } from 'lucide-react';
 import { INITIAL_DATA } from './mockData';
 import { api } from './api';
@@ -56,7 +56,32 @@ export default function App() {
     }
   };
 
-  // Admin Form States
+  // Admin Authentication States
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
+    return sessionStorage.getItem('faye_admin_logged') === 'true';
+  });
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminLoginError, setAdminLoginError] = useState('');
+
+  const handleAdminLogin = (e) => {
+    e.preventDefault();
+    if (adminEmail.trim().toLowerCase() === 'laminefaye@gmail.com' && adminPassword === 'lamine2026') {
+      setIsAdminLoggedIn(true);
+      sessionStorage.setItem('faye_admin_logged', 'true');
+      setAdminLoginError('');
+      showNotification('Connexion administrateur réussie ! 🔐');
+    } else {
+      setAdminLoginError('Identifiant ou mot de passe incorrect.');
+    }
+  };
+
+  const handleAdminLogout = () => {
+    setIsAdminLoggedIn(false);
+    sessionStorage.removeItem('faye_admin_logged');
+    setActiveTab('catalog');
+    showNotification('Déconnexion effectuée.');
+  };
   const [newCatName, setNewCatName] = useState('');
   const [inlineNewCategory, setInlineNewCategory] = useState('');
   const [uploadedGalleryImages, setUploadedGalleryImages] = useState([]);
@@ -776,24 +801,105 @@ export default function App() {
 
         {/* --- VIEW: ADMIN PANEL --- */}
         {activeTab === 'admin' && (
-          <div className="space-y-8 animate-fadeIn">
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                  <SlidersHorizontal className="w-5 h-5 text-blue-600" />
-                  Espace Gestion & Administration de la Vitrine
-                </h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  Ajoutez vos catégories, publiez des produits avec plusieurs photos et remises, et paramétrez votre numéro WhatsApp.
-                </p>
+          !isAdminLoggedIn ? (
+            /* Écran de Connexion Sécurisé */
+            <div className="max-w-md mx-auto my-12 bg-white p-8 rounded-3xl border border-slate-200 shadow-xl animate-scaleUp">
+              <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 mx-auto mb-4 shadow-sm">
+                <Lock className="w-7 h-7" />
               </div>
-              <button
-                onClick={() => setActiveTab('catalog')}
-                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all"
-              >
-                ← Retour au catalogue
-              </button>
+              <h3 className="text-xl font-extrabold text-slate-900 text-center">Accès Administrateur</h3>
+              <p className="text-xs text-slate-500 text-center mt-1">
+                Espace réservé à la gestion de Faye Store. Veuillez entrer vos identifiants uniques.
+              </p>
+
+              {adminLoginError && (
+                <div className="mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold text-center">
+                  {adminLoginError}
+                </div>
+              )}
+
+              <form onSubmit={handleAdminLogin} className="mt-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Identifiant (Email)</label>
+                  <div className="relative">
+                    <User className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="laminefaye@gmail.com"
+                      value={adminEmail}
+                      onChange={(e) => setAdminEmail(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Mot de passe</label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="password"
+                      required
+                      placeholder="••••••••"
+                      value={adminPassword}
+                      onChange={(e) => setAdminPassword(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm shadow-md shadow-blue-500/30 transition-all hover:scale-[1.01]"
+                >
+                  Se connecter
+                </button>
+
+                <div className="pt-2 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('catalog')}
+                    className="text-xs text-slate-400 hover:text-slate-600 font-medium"
+                  >
+                    ← Retourner à la boutique
+                  </button>
+                </div>
+              </form>
             </div>
+          ) : (
+            /* Panneau d'Administration Déverrouillé */
+            <div className="space-y-8 animate-fadeIn">
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                      <SlidersHorizontal className="w-5 h-5 text-blue-600" />
+                      Espace Gestion & Administration — Faye Store
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Connecté en tant que <strong>laminefaye@gmail.com</strong>.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setActiveTab('catalog')}
+                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all"
+                  >
+                    ← Voir la boutique
+                  </button>
+                  <button
+                    onClick={handleAdminLogout}
+                    className="px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-all flex items-center gap-1.5 border border-rose-200"
+                    title="Se déconnecter"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    Déconnexion
+                  </button>
+                </div>
+              </div>
 
             {/* Quick Settings: WhatsApp Number */}
             <div className="bg-gradient-to-r from-emerald-50 via-white to-blue-50 p-6 sm:p-7 rounded-3xl border-2 border-emerald-300 shadow-lg">
@@ -1114,7 +1220,7 @@ export default function App() {
               </div>
             </div>
           </div>
-        )}
+        ))}
       </main>
 
       {/* --- CART DRAWER / MODAL --- */}
