@@ -1,23 +1,50 @@
 import os
-import json
 import pytest
 import hashlib
 import secrets
+from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 
-# Hashes de test pour les identifiants de test uniquement
+# Hashes de test
 _TEST_EMAIL    = "admin@test.com"
 _TEST_PASSWORD = "TestPassword_Security2026!"
 _TEST_EMAIL_HASH = hashlib.sha256(_TEST_EMAIL.encode()).hexdigest()
 _TEST_PASS_HASH  = hashlib.sha256(_TEST_PASSWORD.encode()).hexdigest()
 
-# Injecter les variables d'env AVANT l'import de l'application
+# Variables d'env AVANT l'import de l'app
 os.environ["ADMIN_EMAIL_HASH"] = _TEST_EMAIL_HASH
 os.environ["ADMIN_PASS_HASH"]  = _TEST_PASS_HASH
 os.environ["ADMIN_SECRET_KEY"] = secrets.token_hex(32)
 os.environ["ALLOWED_ORIGINS"]  = "http://localhost:3000"
+os.environ["MONGODB_URI"]      = "mongodb://localhost:27017"  # factice — mocké
 
-from main import app, DATA_FILE, _rate_store
+# =============================================================================
+# Mock MongoDB avec mongomock (base en mémoire pour les tests)
+# =============================================================================
+import mongomock
+
+_mock_client = mongomock.MongoClient()
+_mock_db     = _mock_client["faye_store"]
+
+# Initialiser les données par défaut dans le mock
+_mock_db["settings"].insert_one({
+    "key": "main",
+    "whatsapp_phone": "22373022223",
+    "store_name": "Faye Store",
+    "currency": "FCFA"
+})
+_mock_db["categories"].insert_many([
+    {"id": "smartphones", "name": "Smartphones & Téléphones"},
+    {"id": "laptops",     "name": "Ordinateurs & PC Portables"},
+])
+
+# Patcher get_db pour retourner la base mock
+with patch("main.get_db", return_value=_mock_db):
+    from main import app, _rate_store
+
+# S'assurer que get_db retourne toujours le mock pendant les tests
+import main as _main_module
+_main_module.get_db = lambda: _mock_db
 
 client = TestClient(app)
 
@@ -25,11 +52,9 @@ client = TestClient(app)
 # Helpers
 # ===========================================================================
 def _reset_rate_limit():
-    """Réinitialise les compteurs de rate limit entre les tests."""
     _rate_store.clear()
 
 def _admin_token():
-    """Obtient un token admin valide pour les tests."""
     _reset_rate_limit()
     res = client.post("/api/admin/login", json={"email": _TEST_EMAIL, "password": _TEST_PASSWORD})
     assert res.status_code == 200, f"Login failed: {res.text}"
@@ -102,7 +127,7 @@ def test_delete_category_without_auth():
     assert res.status_code == 401, "FAILLE: suppression catégorie sans auth acceptée !"
 
 def test_update_settings_without_auth():
-    """SÉCURITÉ CRITIQUE : Modification des paramètres WhatsApp DOIT être refusée sans token."""
+    """SÉCURITÉ CRITIQUE : Modification des paramètres DOIT être refusée sans token."""
     res = client.post("/api/settings", json={"whatsapp_phone": "00000000000"})
     assert res.status_code == 401, "FAILLE: modification settings sans auth acceptée !"
 
@@ -116,7 +141,7 @@ def test_invalid_token_rejected():
     assert res.status_code == 401
 
 # ===========================================================================
-# Tests de validation des données (Injection / DoS / XSS Stored)
+# Tests de validation des données
 # ===========================================================================
 def test_xss_in_category_name_sanitized():
     """SÉCURITÉ : Les balises HTML doivent être filtrées avant stockage."""
@@ -128,11 +153,9 @@ def test_xss_in_category_name_sanitized():
     if res.status_code == 201:
         created = res.json()
         assert "<script>" not in created["name"], "FAILLE XSS: balise script non filtrée!"
-        # Nettoyage
         client.delete(f"/api/categories/{created['id']}", headers=_auth(token))
 
 def test_oversized_product_title_rejected():
-    """SÉCURITÉ : Titre trop long (>200 chars) doit être rejeté."""
     token = _admin_token()
     res = client.post("/api/products", json={
         "title": "T" * 201, "category": "smartphones",
@@ -141,7 +164,6 @@ def test_oversized_product_title_rejected():
     assert res.status_code == 422, "FAILLE DoS: titre trop long accepté !"
 
 def test_oversized_description_rejected():
-    """SÉCURITÉ : Description trop longue (>5000 chars) doit être rejetée."""
     token = _admin_token()
     res = client.post("/api/products", json={
         "title": "Test", "category": "smartphones",
@@ -150,7 +172,6 @@ def test_oversized_description_rejected():
     assert res.status_code == 422, "FAILLE DoS: description trop longue acceptée !"
 
 def test_too_many_images_rejected():
-    """SÉCURITÉ : Plus de 10 images doit être rejeté."""
     token = _admin_token()
     res = client.post("/api/products", json={
         "title": "Test", "category": "smartphones",
@@ -160,7 +181,6 @@ def test_too_many_images_rejected():
     assert res.status_code == 422, "FAILLE DoS: trop d'images acceptées !"
 
 def test_negative_price_rejected():
-    """SÉCURITÉ : Prix négatif doit être rejeté."""
     token = _admin_token()
     res = client.post("/api/products", json={
         "title": "Test", "category": "smartphones",
@@ -169,7 +189,6 @@ def test_negative_price_rejected():
     assert res.status_code == 422
 
 def test_invalid_phone_in_settings():
-    """SÉCURITÉ : Numéro de téléphone invalide (trop court ou lettres) doit être rejeté."""
     token = _admin_token()
     res = client.post("/api/settings",
         json={"whatsapp_phone": "abc"},
@@ -178,7 +197,6 @@ def test_invalid_phone_in_settings():
     assert res.status_code == 422, "FAILLE: numéro de tel invalide accepté !"
 
 def test_invalid_image_url_rejected():
-    """SÉCURITÉ : URL d'image invalide (ni https:// ni data:image/) doit être rejetée."""
     token = _admin_token()
     res = client.post("/api/products", json={
         "title": "Test", "category": "smartphones",
@@ -198,10 +216,10 @@ def test_like_action_validation():
     assert res.status_code in [400, 404, 422]
 
 # ===========================================================================
-# Tests fonctionnels (avec authentification)
+# Tests fonctionnels
 # ===========================================================================
 def test_full_product_lifecycle():
-    """Test complet du cycle de vie d'un produit avec authentification."""
+    """Test complet du cycle de vie d'un produit."""
     token = _admin_token()
 
     # Création
@@ -222,6 +240,7 @@ def test_full_product_lifecycle():
     assert prod["likes"] == 0
 
     # Like (sans auth)
+    _reset_rate_limit()
     like_res = client.post(f"/api/products/{prod_id}/like?action=like")
     assert like_res.status_code == 200
     assert like_res.json()["likes"] == 1
@@ -235,7 +254,7 @@ def test_full_product_lifecycle():
     get_res = client.get(f"/api/products/{prod_id}")
     assert get_res.status_code == 200
 
-    # Suppression (avec auth)
+    # Suppression
     del_res = client.delete(f"/api/products/{prod_id}", headers=_auth(token))
     assert del_res.status_code == 200
 
