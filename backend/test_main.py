@@ -31,6 +31,21 @@ def test_create_and_delete_category():
     assert del_res.status_code == 200
 
 def test_get_products_and_search():
+    # Insert temporary test product to ensure test isolation
+    test_prod = {
+        "title": "Apple iPhone 15 Pro Test",
+        "category": "smartphones",
+        "description": "Test description",
+        "price": 850000.0,
+        "discount_percent": 0.0,
+        "images": ["https://images.unsplash.com/photo-test"],
+        "stock": 5,
+        "is_featured": False
+    }
+    create_res = client.post("/api/products", json=test_prod)
+    assert create_res.status_code == 201
+    prod_id = create_res.json()["id"]
+
     # Test all
     res = client.get("/api/products")
     assert res.status_code == 200
@@ -46,6 +61,9 @@ def test_get_products_and_search():
     res_cat = client.get("/api/products?category=smartphones")
     assert res_cat.status_code == 200
     assert all(p["category"] == "smartphones" for p in res_cat.json())
+
+    # Cleanup test product
+    client.delete(f"/api/products/{prod_id}")
 
 def test_create_product_with_multi_images_and_discount():
     new_product_data = {

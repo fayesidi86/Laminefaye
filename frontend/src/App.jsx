@@ -22,7 +22,8 @@ export default function App() {
 
   const [settings, setSettings] = useState(() => {
     const saved = localStorage.getItem('electrotech_settings');
-    return saved ? JSON.parse(saved) : INITIAL_DATA.settings;
+    const parsed = saved ? JSON.parse(saved) : INITIAL_DATA.settings;
+    return { ...parsed, store_name: 'Faye Store', currency: 'FCFA' };
   });
 
   const [cart, setCart] = useState(() => {

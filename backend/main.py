@@ -112,7 +112,7 @@ def load_data():
             "settings": {
                 "whatsapp_phone": "22373022223",
                 "store_name": "Faye Store",
-                "currency": "EUR"
+                "currency": "FCFA"
             }
         }
         save_data(initial_data)
@@ -259,9 +259,9 @@ def toggle_like_product(product_id: str, action: str = Query("like")):
 def get_settings():
     data = load_data()
     return data.get("settings", {
-        "whatsapp_phone": "221770000000",
-        "store_name": "ÉlectroTech Store",
-        "currency": "EUR"
+        "whatsapp_phone": "22373022223",
+        "store_name": "Faye Store",
+        "currency": "FCFA"
     })
 
 @app.post("/api/settings")
