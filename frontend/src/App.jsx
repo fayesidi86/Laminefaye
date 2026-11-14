@@ -6,50 +6,48 @@ import {
   Upload, Image as ImageIcon, Bookmark, Lock, LogOut, User
 } from 'lucide-react';
 import { INITIAL_DATA } from './mockData';
-import { api } from './api';
+import { api, isAdminSessionActive } from './api';
+
+// Lecture sécurisée du localStorage (avec try/catch pour éviter les crashes sur données corrompues)
+const safeGetLocalStorage = (key, fallback) => {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : fallback;
+  } catch {
+    return fallback;
+  }
+};
 
 export default function App() {
-  // --- States ---
-  const [categories, setCategories] = useState(() => {
-    const saved = localStorage.getItem('electrotech_categories');
-    return saved ? JSON.parse(saved) : INITIAL_DATA.categories;
-  });
+  // --- States (lecture sécurisée du localStorage via safeGetLocalStorage) ---
+  const [categories, setCategories] = useState(() =>
+    safeGetLocalStorage('electrotech_categories', INITIAL_DATA.categories)
+  );
   
   const [products, setProducts] = useState(() => {
-    const saved = localStorage.getItem('electrotech_products');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        // Filtrer les anciens produits d'exemple (prod-1 à prod-6)
-        const userOnly = parsed.filter(p => !['prod-1', 'prod-2', 'prod-3', 'prod-4', 'prod-5', 'prod-6'].includes(p.id));
-        return userOnly;
-      } catch {
-        return [];
-      }
+    const saved = safeGetLocalStorage('electrotech_products', []);
+    if (Array.isArray(saved)) {
+      return saved.filter(p => !['prod-1','prod-2','prod-3','prod-4','prod-5','prod-6'].includes(p.id));
     }
     return [];
   });
 
   const [settings, setSettings] = useState(() => {
-    const saved = localStorage.getItem('electrotech_settings');
-    const parsed = saved ? JSON.parse(saved) : INITIAL_DATA.settings;
+    const parsed = safeGetLocalStorage('electrotech_settings', INITIAL_DATA.settings);
     return { ...parsed, store_name: 'Faye Store', currency: 'FCFA' };
   });
 
-  const [cart, setCart] = useState(() => {
-    const saved = localStorage.getItem('electrotech_cart');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [cart, setCart] = useState(() =>
+    safeGetLocalStorage('electrotech_cart', [])
+  );
 
-  const [favorites, setFavorites] = useState(() => {
-    const saved = localStorage.getItem('electrotech_favorites');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [favorites, setFavorites] = useState(() =>
+    safeGetLocalStorage('electrotech_favorites', [])
+  );
 
-  const [likedProducts, setLikedProducts] = useState(() => {
-    const saved = localStorage.getItem('electrotech_liked');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [likedProducts, setLikedProducts] = useState(() =>
+    safeGetLocalStorage('electrotech_liked', [])
+  );
 
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -75,31 +73,48 @@ export default function App() {
   };
 
   // Admin Authentication States (Toujours verrouillé à l'accès pour une sécurité maximale)
+  // SÉCURITÉ : les identifiants ne sont JAMAIS stockés dans le code source côté client.
+  // La vérification est entièrement déléguée au backend via l'endpoint /api/admin/login.
+  // Le token de session est conservé uniquement en mémoire (variable de module dans api.js).
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [adminLoginError, setAdminLoginError] = useState('');
+  const [adminLoginLoading, setAdminLoginLoading] = useState(false);
 
-  // Verrouillage automatique immédiat dès qu'on quitte l'onglet admin (accueil, favoris, etc.)
+  // Verrouillage automatique immédiat dès qu'on quitte l'onglet admin
   useEffect(() => {
     if (activeTab !== 'admin' && isAdminLoggedIn) {
+      // Déconnexion serveur silencieuse
+      api.adminLogout();
       setIsAdminLoggedIn(false);
       setAdminPassword('');
     }
   }, [activeTab, isAdminLoggedIn]);
 
-  const handleAdminLogin = (e) => {
+  const handleAdminLogin = async (e) => {
     e.preventDefault();
-    if (adminEmail.trim().toLowerCase() === 'laminefaye@gmail.com' && adminPassword === 'lamine2026') {
-      setIsAdminLoggedIn(true);
-      setAdminLoginError('');
-      showNotification('Connexion administrateur réussie ! 🔐');
-    } else {
-      setAdminLoginError('Identifiant ou mot de passe incorrect.');
+    if (adminLoginLoading) return;
+    setAdminLoginLoading(true);
+    setAdminLoginError('');
+    try {
+      const result = await api.adminLogin(adminEmail.trim(), adminPassword);
+      if (result.success) {
+        setIsAdminLoggedIn(true);
+        showNotification('Connexion administrateur réussie ! 🔐');
+      } else {
+        setAdminLoginError(result.error || 'Identifiant ou mot de passe incorrect.');
+      }
+    } catch {
+      setAdminLoginError('Erreur réseau. Vérifiez votre connexion.');
+    } finally {
+      setAdminLoginLoading(false);
+      setAdminPassword('');
     }
   };
 
-  const handleAdminLogout = () => {
+  const handleAdminLogout = async () => {
+    await api.adminLogout();
     setIsAdminLoggedIn(false);
     setAdminPassword('');
     setActiveTab('catalog');
@@ -396,31 +411,49 @@ const compressImageFile = (file) => {
     message += `Merci de me confirmer la disponibilité et les modalités de livraison !`;
 
     const encoded = encodeURIComponent(message);
+    // Sanitisation du numéro WhatsApp : chiffres uniquement
     const phone = (settings.whatsapp_phone || '').replace(/[^0-9]/g, '');
+    if (!phone || phone.length < 7) {
+      showNotification('Numéro WhatsApp non configuré. Contactez l\'administrateur.');
+      return;
+    }
     const whatsappUrl = `https://wa.me/${phone}?text=${encoded}`;
-    window.open(whatsappUrl, '_blank');
+    // noopener noreferrer pour éviter les attaques de reverse tabnapping
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   };
 
   // --- Admin Handlers ---
   const handleAddCategory = async (e) => {
     e.preventDefault();
-    if (!newCatName.trim()) return;
-
-    const catId = newCatName.toLowerCase().trim().replace(/\s+/g, '-');
-    const newCategory = { id: catId, name: newCatName.trim() };
-
-    setCategories((prev) => [...prev, newCategory]);
-    await api.addCategory(newCatName.trim());
+    const trimmed = newCatName.trim().slice(0, 80);
+    if (!trimmed) return;
+    const result = await api.addCategory(trimmed);
+    if (result === 'SESSION_EXPIRED') {
+      setIsAdminLoggedIn(false);
+      showNotification('Session expirée. Reconnectez-vous.');
+      return;
+    }
+    if (result && result.id) {
+      setCategories((prev) => [...prev, result]);
+    } else {
+      const catId = trimmed.toLowerCase().replace(/\s+/g, '-');
+      setCategories((prev) => [...prev, { id: catId, name: trimmed }]);
+    }
     setNewCatName('');
-    showNotification("Catégorie ajoutée avec succès !");
+    showNotification('Catégorie ajoutée avec succès !');
   };
 
   const handleDeleteCategory = async (id) => {
     if (id === 'all') return;
-    if (window.confirm("Voulez-vous vraiment supprimer cette catégorie ?")) {
+    if (window.confirm('Voulez-vous vraiment supprimer cette catégorie ?')) {
+      const ok = await api.deleteCategory(id);
+      if (ok === false && !isAdminSessionActive()) {
+        setIsAdminLoggedIn(false);
+        showNotification('Session expirée. Reconnectez-vous.');
+        return;
+      }
       setCategories((prev) => prev.filter((c) => c.id !== id));
-      await api.deleteCategory(id);
-      showNotification("Catégorie supprimée");
+      showNotification('Catégorie supprimée');
     }
   };
 
@@ -454,42 +487,54 @@ const compressImageFile = (file) => {
     // Si l'administrateur a saisi une nouvelle catégorie directement lors de la publication
     let selectedCat = prodForm.category;
     if (prodForm.category === '__new__' && inlineNewCategory.trim()) {
-      const catId = inlineNewCategory.toLowerCase().trim().replace(/\s+/g, '-');
-      const newCatObj = { id: catId, name: inlineNewCategory.trim() };
-      setCategories((prev) => [...prev, newCatObj]);
-      api.addCategory(inlineNewCategory.trim());
-      selectedCat = catId;
+      const newCatResult = await api.addCategory(inlineNewCategory.trim().slice(0, 80));
+      if (newCatResult === 'SESSION_EXPIRED') { setIsAdminLoggedIn(false); showNotification('Session expirée.'); return; }
+      if (newCatResult && newCatResult.id) {
+        setCategories((prev) => [...prev, newCatResult]);
+        selectedCat = newCatResult.id;
+      } else {
+        const catId = inlineNewCategory.toLowerCase().trim().replace(/\s+/g, '-').slice(0, 60);
+        setCategories((prev) => [...prev, { id: catId, name: inlineNewCategory.trim() }]);
+        selectedCat = catId;
+      }
     }
 
     if (!prodForm.title || !prodForm.price || !selectedCat || selectedCat === '__new__') {
-      alert("Veuillez remplir au moins le titre, le prix et choisir/créer une catégorie valide.");
+      showNotification('Veuillez remplir le titre, le prix et choisir une catégorie.');
       return;
     }
+
+    // Validation côté client (défense en profondeur — le backend revalide aussi)
+    const titleTrimmed = prodForm.title.trim().slice(0, 200);
+    const descTrimmed  = prodForm.description.trim().slice(0, 5000);
+    const priceVal     = Math.max(0, parseFloat(prodForm.price) || 0);
+    const discountVal  = Math.min(100, Math.max(0, parseFloat(prodForm.discount_percent) || 0));
+    const stockVal     = Math.min(100000, Math.max(0, parseInt(prodForm.stock) || 10));
 
     const textUrls = prodForm.imagesText
       .split('\n')
       .map((url) => url.trim())
-      .filter((url) => url.length > 0);
+      .filter((url) => url.length > 0 && (url.startsWith('https://') || url.startsWith('http://')))
+      .slice(0, 10); // max 10 images
 
-    // Combiner les images de la galerie locale et les URLs textuelles
-    const combinedImages = [...uploadedGalleryImages, ...textUrls];
-
-    const fallbackImg = "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=800&q=80";
+    const combinedImages = [...uploadedGalleryImages, ...textUrls].slice(0, 10);
+    const fallbackImg = 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=800&q=80';
 
     const newProd = {
       id: `prod-${Date.now()}`,
-      title: prodForm.title,
+      title: titleTrimmed,
       category: selectedCat,
-      price: parseFloat(prodForm.price),
-      discount_percent: parseFloat(prodForm.discount_percent) || 0,
-      description: prodForm.description,
+      price: priceVal,
+      discount_percent: discountVal,
+      description: descTrimmed,
       images: combinedImages.length > 0 ? combinedImages : [fallbackImg],
-      stock: parseInt(prodForm.stock) || 10,
+      stock: stockVal,
       likes: 0,
-      is_featured: prodForm.is_featured
+      is_featured: Boolean(prodForm.is_featured)
     };
 
     const added = await api.addProduct(newProd);
+    if (added === 'SESSION_EXPIRED') { setIsAdminLoggedIn(false); showNotification('Session expirée. Reconnectez-vous.'); return; }
     if (added && added.id) {
       setProducts((prev) => [added, ...prev.filter(p => p.id !== newProd.id)]);
     } else {
@@ -497,38 +542,31 @@ const compressImageFile = (file) => {
     }
 
     // Reset Form
-    setProdForm({
-      title: '',
-      category: '',
-      price: '',
-      discount_percent: 0,
-      description: '',
-      imagesText: '',
-      stock: 10,
-      is_featured: false
-    });
+    setProdForm({ title: '', category: '', price: '', discount_percent: 0, description: '', imagesText: '', stock: 10, is_featured: false });
     setInlineNewCategory('');
     setUploadedGalleryImages([]);
-
-    showNotification("Produit publié avec succès avec ses photos !");
+    showNotification('Produit publié avec succès avec ses photos !');
   };
 
   const handleDeleteProduct = async (id) => {
-    if (window.confirm("Supprimer ce produit de la boutique ?")) {
+    if (window.confirm('Supprimer ce produit de la boutique ?')) {
+      const ok = await api.deleteProduct(id);
+      if (ok === false && !isAdminSessionActive()) { setIsAdminLoggedIn(false); showNotification('Session expirée. Reconnectez-vous.'); return; }
       setProducts((prev) => prev.filter((p) => p.id !== id));
       setFavorites((prev) => prev.filter((favId) => favId !== id));
       setLikedProducts((prev) => prev.filter((likeId) => likeId !== id));
-      await api.deleteProduct(id);
-      showNotification("Produit retiré du catalogue");
+      showNotification('Produit retiré du catalogue');
     }
   };
 
   const handleUpdateSettings = async (e) => {
     e.preventDefault();
-    const updated = { ...settings, whatsapp_phone: whatsappPhoneInput };
-    setSettings(updated);
-    await api.updateSettings(updated);
-    showNotification("Numéro WhatsApp et paramètres enregistrés !");
+    const phoneClean = whatsappPhoneInput.replace(/[^0-9]/g, '').slice(0, 20);
+    const updated = { ...settings, whatsapp_phone: phoneClean };
+    const result = await api.updateSettings(updated);
+    if (result === 'SESSION_EXPIRED') { setIsAdminLoggedIn(false); showNotification('Session expirée. Reconnectez-vous.'); return; }
+    if (result) setSettings(prev => ({ ...prev, ...result }));
+    showNotification('Numéro WhatsApp et paramètres enregistrés !');
   };
 
   return (
@@ -591,7 +629,7 @@ const compressImageFile = (file) => {
                   type="text"
                   placeholder="Rechercher un produit (iPhone, MacBook, Casque...)..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => setSearchQuery(e.target.value.slice(0, 200))}
                   className="w-full bg-slate-100 hover:bg-slate-50 focus:bg-white text-slate-900 pl-9 pr-8 py-1.5 rounded-full border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all outline-none text-xs placeholder:text-slate-400"
                 />
                 {searchQuery && (
@@ -980,9 +1018,10 @@ const compressImageFile = (file) => {
 
                 <button
                   type="submit"
-                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-sm shadow-lg shadow-blue-500/30 transition-all hover:scale-[1.01] active:scale-[0.99] uppercase tracking-wider"
+                  disabled={adminLoginLoading}
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-sm shadow-lg shadow-blue-500/30 transition-all hover:scale-[1.01] active:scale-[0.99] uppercase tracking-wider disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Se connecter
+                  {adminLoginLoading ? 'Connexion en cours...' : 'Se connecter'}
                 </button>
 
                 <div className="pt-2 text-center">
@@ -1009,7 +1048,7 @@ const compressImageFile = (file) => {
                     </h3>
                   </div>
                   <p className="text-xs text-slate-500 mt-1">
-                    Connecté en tant que <strong>laminefaye@gmail.com</strong>.
+                   Connecté en tant que <strong>administrateur</strong>.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1704,7 +1743,7 @@ const compressImageFile = (file) => {
               <a
                 href={`https://wa.me/${(settings.whatsapp_phone || '').replace(/[^0-9]/g, '')}`}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-colors shadow-md"
               >
                 <Phone className="w-4 h-4" />

@@ -6,3 +6,27 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     plan: free
+    envVars:
+      # IMPORTANT : Ces variables doivent être définies dans le dashboard Render.com
+      # Ne mettez jamais les vraies valeurs ici (ce fichier est public sur GitHub).
+      #
+      # ADMIN_EMAIL_HASH : sha256 de l'email admin en minuscules
+      #   Calculez-le avec : python3 -c "import hashlib; print(hashlib.sha256('votre@email.com'.encode()).hexdigest())"
+      #
+      # ADMIN_PASS_HASH : sha256 du mot de passe admin
+      #   Calculez-le avec : python3 -c "import hashlib; print(hashlib.sha256('votre_mot_de_passe'.encode()).hexdigest())"
+      #
+      # ADMIN_SECRET_KEY : clé secrète longue aléatoire (32+ caractères)
+      #   Générez-la avec : python3 -c "import secrets; print(secrets.token_hex(32))"
+      #
+      # ALLOWED_ORIGINS : origines autorisées séparées par des virgules
+      #   Exemple : https://laminefaye.vercel.app,http://localhost:3000
+      - key: ADMIN_EMAIL_HASH
+        sync: false
+      - key: ADMIN_PASS_HASH
+        sync: false
+      - key: ADMIN_SECRET_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: "https://laminefaye.vercel.app,http://localhost:3000,http://localhost:5173"
+
