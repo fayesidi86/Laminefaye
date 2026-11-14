@@ -121,29 +121,97 @@ export default function App() {
   const [whatsappPhoneInput, setWhatsappPhoneInput] = useState(settings.whatsapp_phone || '221770000000');
   const [notification, setNotification] = useState(null);
 
-  // Sync to Backend en priorité, puis fallback localStorage
+  // Safe LocalStorage Helper pour éviter les plantages QuotaExceededError
+const safeSetLocalStorage = (key, value) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (err) {
+    console.warn(`[LocalStorage] Impossible d'enregistrer ${key}:`, err);
+    try {
+      // Si le quota déborde, on supprime le cache des images lourdes de l'ancien état
+      if (key === 'electrotech_cart') {
+        // Enregistrer une version ultra-légère du panier (sans images lourdes)
+        const lightCart = Array.isArray(value) ? value.map(it => ({
+          id: it.id,
+          title: it.title,
+          price: it.price,
+          discount_percent: it.discount_percent,
+          quantity: it.quantity,
+          category: it.category
+        })) : [];
+        localStorage.setItem(key, JSON.stringify(lightCart));
+      }
+    } catch (e2) {
+      console.warn(`[LocalStorage] Deuxième tentative échouée:`, e2);
+    }
+  }
+};
+
+// Fonction de redimensionnement et compression intelligente des photos uploadées (max 1200px, JPEG 0.75)
+const compressImageFile = (file) => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1200;
+        const MAX_HEIGHT = 1200;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width = Math.round((width * MAX_HEIGHT) / height);
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Compression JPEG qualité 0.75 (réduit la taille de 3.5 Mo à ~80-150 Ko sans perte visuelle appréciable)
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.75);
+        resolve(compressedBase64);
+      };
+      img.onerror = () => resolve(event.target.result);
+      img.src = event.target.result;
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+};
+
+  // Sync to Backend en priorité, puis fallback safe localStorage
   useEffect(() => {
-    localStorage.setItem('electrotech_categories', JSON.stringify(categories));
+    safeSetLocalStorage('electrotech_categories', categories);
   }, [categories]);
 
   useEffect(() => {
-    localStorage.setItem('electrotech_products', JSON.stringify(products));
+    safeSetLocalStorage('electrotech_products', products);
   }, [products]);
 
   useEffect(() => {
-    localStorage.setItem('electrotech_cart', JSON.stringify(cart));
+    safeSetLocalStorage('electrotech_cart', cart);
   }, [cart]);
 
   useEffect(() => {
-    localStorage.setItem('electrotech_favorites', JSON.stringify(favorites));
+    safeSetLocalStorage('electrotech_favorites', favorites);
   }, [favorites]);
 
   useEffect(() => {
-    localStorage.setItem('electrotech_liked', JSON.stringify(likedProducts));
+    safeSetLocalStorage('electrotech_liked', likedProducts);
   }, [likedProducts]);
 
   useEffect(() => {
-    localStorage.setItem('electrotech_settings', JSON.stringify(settings));
+    safeSetLocalStorage('electrotech_settings', settings);
   }, [settings]);
 
   // Synchronisation continue et automatique avec l'API en ligne (téléphone <-> ordi)
@@ -224,6 +292,17 @@ export default function App() {
   // --- Cart Handlers ---
   const addToCart = (product) => {
     if (!product) return;
+    // Ne garder qu'une miniature ou la première image dans l'article du panier
+    const cartItem = {
+      id: product.id,
+      title: product.title || '',
+      price: Number(product.price) || 0,
+      discount_percent: Number(product.discount_percent) || 0,
+      category: product.category || '',
+      // Stocke seulement la première image
+      images: Array.isArray(product.images) && product.images.length > 0 ? [product.images[0]] : []
+    };
+
     setCart((prev) => {
       const exists = prev.find((item) => item.id === product.id);
       if (exists) {
@@ -231,7 +310,7 @@ export default function App() {
           item.id === product.id ? { ...item, quantity: (item.quantity || 1) + 1 } : item
         );
       }
-      return [...prev, { ...product, quantity: 1 }];
+      return [...prev, { ...cartItem, quantity: 1 }];
     });
     const safeTitle = (product.title || 'Produit').toString();
     showNotification(`"${safeTitle.slice(0, 25)}..." ajouté au panier !`);
@@ -345,20 +424,24 @@ export default function App() {
     }
   };
 
-  // --- Image Upload Handler (Galerie / Fichiers locaux) ---
-  const handleImageFilesUpload = (e) => {
+  // --- Image Upload Handler (Galerie / Fichiers locaux) avec Compression Automatique ---
+  const handleImageFilesUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
 
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setUploadedGalleryImages((prev) => [...prev, event.target.result]);
-      };
-      reader.readAsDataURL(file);
-    });
+    showNotification(`Traitement et optimisation de ${files.length} photo(s)...`);
 
-    showNotification(`${files.length} photo(s) chargée(s) depuis votre galerie !`);
+    try {
+      const compressedList = await Promise.all(
+        files.map((file) => compressImageFile(file))
+      );
+      const validImages = compressedList.filter(Boolean);
+      setUploadedGalleryImages((prev) => [...prev, ...validImages]);
+      showNotification(`${validImages.length} photo(s) chargée(s) et optimisée(s) !`);
+    } catch (err) {
+      console.error("Erreur compression image:", err);
+      showNotification("Erreur lors du chargement des images.");
+    }
   };
 
   const removeGalleryImage = (indexToRemove) => {
