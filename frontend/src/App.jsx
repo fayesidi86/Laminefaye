@@ -17,7 +17,17 @@ export default function App() {
   
   const [products, setProducts] = useState(() => {
     const saved = localStorage.getItem('electrotech_products');
-    return saved ? JSON.parse(saved) : INITIAL_DATA.products;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Filtrer les anciens produits d'exemple (prod-1 à prod-6)
+        const userOnly = parsed.filter(p => !['prod-1', 'prod-2', 'prod-3', 'prod-4', 'prod-5', 'prod-6'].includes(p.id));
+        return userOnly;
+      } catch {
+        return [];
+      }
+    }
+    return [];
   });
 
   const [settings, setSettings] = useState(() => {
@@ -43,7 +53,13 @@ export default function App() {
 
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('catalog'); // 'catalog' | 'favorites' | 'admin'
+  const [activeTab, setActiveTab] = useState(() => {
+    return sessionStorage.getItem('faye_active_tab') || 'catalog';
+  });
+
+  useEffect(() => {
+    sessionStorage.setItem('faye_active_tab', activeTab);
+  }, [activeTab]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [viewProductModal, setViewProductModal] = useState(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
