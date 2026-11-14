@@ -796,27 +796,50 @@ export default function App() {
             </div>
 
             {/* Quick Settings: WhatsApp Number */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-              <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-3">
-                <Phone className="w-4 h-4 text-emerald-500" />
-                Numéro WhatsApp pour recevoir les commandes
-              </h4>
-              <form onSubmit={handleUpdateSettings} className="flex flex-wrap items-center gap-3">
-                <input
-                  type="text"
-                  placeholder="Ex: 221770000000 (avec code pays, sans espace)"
-                  value={whatsappPhoneInput}
-                  onChange={(e) => setWhatsappPhoneInput(e.target.value)}
-                  className="flex-1 min-w-[280px] px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+            <div className="bg-gradient-to-r from-emerald-50 via-white to-blue-50 p-6 sm:p-7 rounded-3xl border-2 border-emerald-300 shadow-lg">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-md">
+                    <Phone className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-base font-extrabold text-slate-900">
+                      Numéro WhatsApp de réception des commandes
+                    </h4>
+                    <p className="text-xs text-slate-500">
+                      Les paniers validés par les clients et les totaux seront envoyés directement à ce numéro.
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  Actif : +{settings.whatsapp_phone}
+                </span>
+              </div>
+
+              <form onSubmit={handleUpdateSettings} className="mt-4 flex flex-col sm:flex-row items-stretch gap-3">
+                <div className="relative flex-1">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <span className="text-slate-400 font-bold text-sm">+</span>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Ex: 22373022223 (code pays + numéro sans espace ni tiret)"
+                    value={whatsappPhoneInput}
+                    onChange={(e) => setWhatsappPhoneInput(e.target.value)}
+                    className="w-full pl-8 pr-4 py-3.5 rounded-2xl bg-white border-2 border-slate-300 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 text-slate-900 text-base sm:text-lg font-bold tracking-wider placeholder:font-normal placeholder:text-slate-400 shadow-sm transition-all outline-none"
+                  />
+                </div>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2"
+                  className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-extrabold text-sm shadow-md shadow-emerald-600/30 hover:shadow-lg transition-all flex items-center justify-center gap-2 flex-shrink-0"
                 >
-                  <Check className="w-4 h-4" />
+                  <Check className="w-5 h-5" />
                   Sauvegarder le numéro
                 </button>
               </form>
+              <p className="text-[11px] text-slate-500 mt-2 font-medium">
+                💡 Exemple : pour le Mali <code className="bg-white px-1.5 py-0.5 rounded border text-emerald-700 font-bold">22373022223</code>, pour le Sénégal <code className="bg-white px-1.5 py-0.5 rounded border text-emerald-700 font-bold">221770000000</code>.
+              </p>
             </div>
 
             {/* Manage Categories Section */}
