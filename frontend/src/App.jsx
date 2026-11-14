@@ -198,13 +198,16 @@ export default function App() {
   }, [products, favorites]);
   const cartSubtotal = useMemo(() => {
     return cart.reduce((total, item) => {
-      const finalPrice = item.price * (1 - (item.discount_percent || 0) / 100);
-      return total + finalPrice * item.quantity;
+      const pPrice = Number(item?.price) || 0;
+      const pDiscount = Number(item?.discount_percent) || 0;
+      const pQty = Number(item?.quantity) || 1;
+      const finalPrice = pPrice * (1 - pDiscount / 100);
+      return total + finalPrice * pQty;
     }, 0);
   }, [cart]);
 
   const cartTotalItems = useMemo(() => {
-    return cart.reduce((acc, item) => acc + item.quantity, 0);
+    return cart.reduce((acc, item) => acc + (Number(item?.quantity) || 1), 0);
   }, [cart]);
 
   // --- Filtering Products ---
@@ -220,16 +223,18 @@ export default function App() {
 
   // --- Cart Handlers ---
   const addToCart = (product) => {
+    if (!product) return;
     setCart((prev) => {
       const exists = prev.find((item) => item.id === product.id);
       if (exists) {
         return prev.map((item) =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+          item.id === product.id ? { ...item, quantity: (item.quantity || 1) + 1 } : item
         );
       }
       return [...prev, { ...product, quantity: 1 }];
     });
-    showNotification(`"${product.title.slice(0, 25)}..." ajouté au panier !`);
+    const safeTitle = (product.title || 'Produit').toString();
+    showNotification(`"${safeTitle.slice(0, 25)}..." ajouté au panier !`);
   };
 
   const updateCartQuantity = (id, delta) => {
@@ -1313,19 +1318,21 @@ export default function App() {
                   </div>
                 ) : (
                   cart.map((item) => {
-                    const finalPrice = item.price * (1 - (item.discount_percent || 0) / 100);
+                    const iPrice = Number(item?.price) || 0;
+                    const iDiscount = Number(item?.discount_percent) || 0;
+                    const finalPrice = iPrice * (1 - iDiscount / 100);
                     return (
                       <div key={item.id} className="flex gap-4 p-3 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors">
                         <img
                           src={item.images?.[0] || 'https://via.placeholder.com/80'}
-                          alt={item.title}
+                          alt={item.title || ''}
                           className="w-16 h-16 rounded-xl object-cover border border-slate-200"
                         />
                         <div className="flex-1 flex flex-col justify-between">
                           <div>
                             <h5 className="text-xs font-bold text-slate-800 line-clamp-1">{item.title}</h5>
                             <span className="text-xs font-extrabold text-blue-600">
-                              {finalPrice.toLocaleString()} {settings.currency || 'FCFA'}
+                              {(finalPrice || 0).toLocaleString()} {settings.currency || 'FCFA'}
                             </span>
                           </div>
 
