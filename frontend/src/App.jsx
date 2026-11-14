@@ -3,7 +3,7 @@ import {
   Search, ShoppingCart, Heart, Tag, SlidersHorizontal, Plus, 
   Trash2, X, Check, Phone, ArrowRight, ShieldCheck, 
   Truck, Clock, Sparkles, ChevronLeft, ChevronRight, Eye, RefreshCw, Send,
-  Upload, Image as ImageIcon
+  Upload, Image as ImageIcon, Bookmark
 } from 'lucide-react';
 import { INITIAL_DATA } from './mockData';
 import { api } from './api';
@@ -32,6 +32,11 @@ export default function App() {
 
   const [favorites, setFavorites] = useState(() => {
     const saved = localStorage.getItem('electrotech_favorites');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [likedProducts, setLikedProducts] = useState(() => {
+    const saved = localStorage.getItem('electrotech_liked');
     return saved ? JSON.parse(saved) : [];
   });
 
@@ -83,6 +88,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('electrotech_favorites', JSON.stringify(favorites));
   }, [favorites]);
+
+  useEffect(() => {
+    localStorage.setItem('electrotech_liked', JSON.stringify(likedProducts));
+  }, [likedProducts]);
 
   useEffect(() => {
     localStorage.setItem('electrotech_settings', JSON.stringify(settings));
@@ -168,27 +177,42 @@ export default function App() {
     setCart((prev) => prev.filter((item) => item.id !== id));
   };
 
-  // --- Like / Favorite Handlers ---
-  const toggleFavorite = (productId) => {
-    setFavorites((prev) => {
-      const isFav = prev.includes(productId);
-      const updated = isFav ? prev.filter((id) => id !== productId) : [...prev, productId];
-      showNotification(isFav ? "Retiré des favoris" : "Ajouté à vos favoris ❤️");
-      return updated;
-    });
+  // --- Distinct Like & Favorite Handlers ---
+  const toggleLike = (productId) => {
+    const isLiked = likedProducts.includes(productId);
+    const updatedLiked = isLiked
+      ? likedProducts.filter((id) => id !== productId)
+      : [...likedProducts, productId];
+    setLikedProducts(updatedLiked);
 
-    // Also toggle like count
     setProducts((prev) =>
       prev.map((p) => {
         if (p.id === productId) {
-          const isFav = favorites.includes(productId);
-          const newLikes = isFav ? Math.max(0, (p.likes || 1) - 1) : (p.likes || 0) + 1;
-          api.toggleLike(productId, isFav ? 'unlike' : 'like');
+          const newLikes = isLiked ? Math.max(0, (p.likes || 1) - 1) : (p.likes || 0) + 1;
+          api.toggleLike(productId, isLiked ? 'unlike' : 'like');
           return { ...p, likes: newLikes };
         }
         return p;
       })
     );
+
+    if (viewProductModal && viewProductModal.id === productId) {
+      setViewProductModal((prev) => ({
+        ...prev,
+        likes: isLiked ? Math.max(0, (prev.likes || 1) - 1) : (prev.likes || 0) + 1
+      }));
+    }
+
+    showNotification(isLiked ? "Like retiré" : "Vous aimez cet article ! ❤️");
+  };
+
+  const toggleFavorite = (productId) => {
+    setFavorites((prev) => {
+      const isFav = prev.includes(productId);
+      const updated = isFav ? prev.filter((id) => id !== productId) : [...prev, productId];
+      showNotification(isFav ? "Retiré des favoris" : "Enregistré dans vos favoris ⭐");
+      return updated;
+    });
   };
 
   // --- Send Order via WhatsApp ---
@@ -601,6 +625,7 @@ export default function App() {
                 {filteredProducts.map((product) => {
                   const finalPrice = product.price * (1 - (product.discount_percent || 0) / 100);
                   const isFav = favorites.includes(product.id);
+                  const isLiked = likedProducts.includes(product.id);
 
                   return (
                     <div
@@ -621,21 +646,41 @@ export default function App() {
                         )}
                       </div>
 
-                      {/* Favorite Button */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleFavorite(product.id);
-                        }}
-                        className={`absolute top-3 right-3 z-10 p-2 rounded-full backdrop-blur-md transition-all shadow-md ${
-                          isFav
-                            ? 'bg-rose-50 text-rose-600 hover:scale-110'
-                            : 'bg-white/80 text-slate-600 hover:text-rose-500 hover:bg-white'
-                        }`}
-                        title={isFav ? "Retirer des favoris" : "Ajouter aux favoris"}
-                      >
-                        <Heart className={`w-4 h-4 ${isFav ? 'fill-rose-500 text-rose-500' : ''}`} />
-                      </button>
+                      {/* Top Right Action Buttons: Like & Favori */}
+                      <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5">
+                        {/* Bouton Like avec compteur */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleLike(product.id);
+                          }}
+                          className={`flex items-center gap-1 px-2 py-1 rounded-full backdrop-blur-md transition-all shadow-md text-xs font-bold ${
+                            isLiked
+                              ? 'bg-rose-500 text-white hover:scale-105 shadow-rose-500/30'
+                              : 'bg-white/90 text-slate-700 hover:text-rose-600 hover:bg-white'
+                          }`}
+                          title={isLiked ? "Je n'aime plus" : "J'aime cet article"}
+                        >
+                          <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-white text-white' : 'text-slate-600'}`} />
+                          <span className="text-[11px]">{product.likes || 0}</span>
+                        </button>
+
+                        {/* Bouton Favori / Bookmark */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFavorite(product.id);
+                          }}
+                          className={`p-1.5 rounded-full backdrop-blur-md transition-all shadow-md ${
+                            isFav
+                              ? 'bg-amber-500 text-white hover:scale-105 shadow-amber-500/30'
+                              : 'bg-white/90 text-slate-700 hover:text-amber-500 hover:bg-white'
+                          }`}
+                          title={isFav ? "Retirer des favoris" : "Ajouter aux favoris"}
+                        >
+                          <Bookmark className={`w-3.5 h-3.5 ${isFav ? 'fill-white text-white' : 'text-slate-600'}`} />
+                        </button>
+                      </div>
 
                       {/* Image Preview & Carousel click */}
                       <div 
@@ -1271,22 +1316,42 @@ export default function App() {
                 </div>
 
                 {/* Actions Modal */}
-                <div className="mt-6 pt-4 border-t border-slate-100 flex gap-3">
+                <div className="mt-6 pt-4 border-t border-slate-100 flex items-center gap-3">
+                  {/* Bouton Like dans la modal */}
                   <button
-                    onClick={() => toggleFavorite(viewProductModal.id)}
-                    className={`p-3.5 rounded-2xl border transition-all ${
-                      favorites.includes(viewProductModal.id)
+                    onClick={() => toggleLike(viewProductModal.id)}
+                    className={`px-4 py-3 rounded-2xl border transition-all flex items-center gap-2 font-bold text-xs ${
+                      likedProducts.includes(viewProductModal.id)
                         ? 'bg-rose-50 border-rose-200 text-rose-600'
-                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                        : 'border-slate-200 text-slate-700 hover:bg-slate-50'
                     }`}
-                    title="Favoris"
+                    title="J'aime ce produit"
                   >
                     <Heart
-                      className={`w-5 h-5 ${
-                        favorites.includes(viewProductModal.id) ? 'fill-rose-500 text-rose-500' : ''
+                      className={`w-4 h-4 ${
+                        likedProducts.includes(viewProductModal.id) ? 'fill-rose-500 text-rose-500' : 'text-slate-600'
+                      }`}
+                    />
+                    <span>{viewProductModal.likes || 0} J'aime</span>
+                  </button>
+
+                  {/* Bouton Favori dans la modal */}
+                  <button
+                    onClick={() => toggleFavorite(viewProductModal.id)}
+                    className={`p-3 rounded-2xl border transition-all ${
+                      favorites.includes(viewProductModal.id)
+                        ? 'bg-amber-50 border-amber-200 text-amber-600'
+                        : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                    title={favorites.includes(viewProductModal.id) ? "Retirer des favoris" : "Ajouter aux favoris"}
+                  >
+                    <Bookmark
+                      className={`w-4 h-4 ${
+                        favorites.includes(viewProductModal.id) ? 'fill-amber-500 text-amber-500' : 'text-slate-600'
                       }`}
                     />
                   </button>
+
                   <button
                     onClick={() => {
                       addToCart(viewProductModal);
