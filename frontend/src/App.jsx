@@ -57,8 +57,10 @@ export default function App() {
     return sessionStorage.getItem('faye_active_tab') || 'catalog';
   });
 
+  // Défilement automatique vers le haut à chaque changement d'onglet/page
   useEffect(() => {
     sessionStorage.setItem('faye_active_tab', activeTab);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [activeTab]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [viewProductModal, setViewProductModal] = useState(null);
