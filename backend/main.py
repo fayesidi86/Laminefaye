@@ -13,17 +13,10 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 from starlette.middleware.base import BaseHTTPMiddleware
 
-# MongoDB
-from pymongo import MongoClient
-from pymongo.errors import PyMongoError
-
 # =============================================================================
-# LOGGING SÉCURISÉ (jamais de stacktrace complète en prod)
+# LOGGING SÉCURISÉ
 # =============================================================================
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("faye-store")
 
 # =============================================================================
@@ -41,20 +34,20 @@ ALLOWED_ORIGINS_RAW = os.environ.get(
     "https://laminefaye.vercel.app,http://localhost:3000,http://localhost:5173"
 )
 ALLOWED_ORIGINS = [o.strip() for o in ALLOWED_ORIGINS_RAW.split(",") if o.strip()]
-
 ADMIN_TOKEN_TTL = int(os.environ.get("ADMIN_TOKEN_TTL", "3600"))
 
-# URI MongoDB Atlas (obligatoire en production)
-MONGODB_URI = os.environ.get("MONGODB_URI", "")
+# Variables Supabase
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")  # service_role key
 
 # =============================================================================
-# LIMITES DE TAILLE (DoS / Storage Bomb Protection)
+# LIMITES DE TAILLE
 # =============================================================================
 MAX_TITLE_LEN        = 200
 MAX_DESC_LEN         = 5000
 MAX_CATEGORY_NAME    = 80
 MAX_IMAGES_COUNT     = 10
-MAX_IMAGE_URL_LEN    = 2_000_000  # ~2MB pour les base64
+MAX_IMAGE_URL_LEN    = 2_000_000
 MAX_PHONE_LEN        = 20
 MAX_STORE_NAME_LEN   = 100
 MAX_CURRENCY_LEN     = 10
@@ -63,56 +56,54 @@ MAX_CATEGORIES_TOTAL = 50
 MAX_SEARCH_QUERY_LEN = 200
 
 # =============================================================================
-# CONNEXION MONGODB
+# CONNEXION SUPABASE (lazy, singleton)
 # =============================================================================
-_mongo_client: Optional[MongoClient] = None
-_db = None
+_supabase_client = None
 
-def get_db():
-    global _mongo_client, _db
-    if _db is not None:
-        return _db
-    if not MONGODB_URI:
+def get_supabase():
+    global _supabase_client
+    if _supabase_client is not None:
+        return _supabase_client
+    if not SUPABASE_URL or not SUPABASE_KEY:
         raise HTTPException(
             status_code=503,
             detail="Base de données non configurée. Contactez l'administrateur."
         )
     try:
-        if _mongo_client is None:
-            _mongo_client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
-        _db = _mongo_client["faye_store"]
-        # Crée les index uniques au démarrage
-        _db["categories"].create_index("id", unique=True)
-        _db["products"].create_index("id", unique=True)
-        return _db
-    except PyMongoError as e:
-        logger.error(f"Erreur connexion MongoDB: {e}")
+        from supabase import create_client
+        _supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        return _supabase_client
+    except Exception as e:
+        logger.error(f"Erreur connexion Supabase: {e}")
         raise HTTPException(status_code=503, detail="Erreur de connexion à la base de données.")
 
 def _ensure_defaults():
-    """Initialise les données par défaut si la DB est vide."""
+    """Initialise les données par défaut si les tables sont vides."""
     try:
-        db = get_db()
+        sb = get_supabase()
         # Catégories par défaut
-        if db["categories"].count_documents({}) == 0:
-            default_cats = [
+        cats = sb.table("categories").select("id").execute()
+        if not cats.data:
+            sb.table("categories").insert([
                 {"id": "smartphones",  "name": "Smartphones & Téléphones"},
                 {"id": "laptops",      "name": "Ordinateurs & PC Portables"},
                 {"id": "audio",        "name": "Audio, Casques & Écouteurs"},
                 {"id": "accessoires",  "name": "Accessoires & Connectique"},
                 {"id": "montres",      "name": "Montres Connectées & Wearables"},
-            ]
-            db["categories"].insert_many(default_cats)
+            ]).execute()
             logger.info("Catégories par défaut créées.")
         # Paramètres par défaut
-        if db["settings"].count_documents({}) == 0:
-            db["settings"].insert_one({
+        settings = sb.table("settings").select("key").eq("key", "main").execute()
+        if not settings.data:
+            sb.table("settings").insert({
                 "key": "main",
                 "whatsapp_phone": "22373022223",
                 "store_name": "Faye Store",
                 "currency": "FCFA"
-            })
+            }).execute()
             logger.info("Paramètres par défaut créés.")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Erreur init defaults: {e}")
 
@@ -139,17 +130,12 @@ def _check_rate_limit(request: Request, limit: int, window: int) -> None:
         logger.warning(f"Rate limit exceeded for IP {ip}")
         raise HTTPException(status_code=429, detail="Trop de requêtes. Veuillez patienter.")
 
-def rate_limit_public(request: Request):
-    _check_rate_limit(request, limit=60, window=60)
-
-def rate_limit_write(request: Request):
-    _check_rate_limit(request, limit=30, window=60)
-
-def rate_limit_auth(request: Request):
-    _check_rate_limit(request, limit=10, window=300)
+def rate_limit_public(request: Request):  _check_rate_limit(request, limit=60, window=60)
+def rate_limit_write(request: Request):   _check_rate_limit(request, limit=30, window=60)
+def rate_limit_auth(request: Request):    _check_rate_limit(request, limit=10, window=300)
 
 # =============================================================================
-# IN-MEMORY TOKEN STORE pour les sessions admin
+# IN-MEMORY TOKEN STORE (sessions admin)
 # =============================================================================
 _admin_tokens: dict = {}
 
@@ -182,8 +168,7 @@ def _get_admin_token(request: Request) -> str:
 def _sanitize_text(text: str) -> str:
     if not isinstance(text, str):
         return ""
-    cleaned = re.sub(r'<[^>]+>', '', text)
-    return cleaned.strip()
+    return re.sub(r'<[^>]+>', '', text).strip()
 
 def _validate_phone(phone: str) -> str:
     digits_only = re.sub(r'[^0-9]', '', phone)
@@ -203,14 +188,10 @@ def _validate_image_url(url: str) -> str:
         return url
     raise ValueError("URL d'image invalide: doit commencer par https:// ou être une image base64.")
 
-def _doc_to_product(doc: dict) -> dict:
-    """Convertit un document MongoDB en dict propre (sans _id)."""
-    doc.pop("_id", None)
-    return doc
-
-def _doc_to_category(doc: dict) -> dict:
-    doc.pop("_id", None)
-    return doc
+def _clean_product(p: dict) -> dict:
+    """Retire les champs internes avant d'envoyer au frontend."""
+    p.pop("created_at", None)
+    return p
 
 # =============================================================================
 # MODÈLES PYDANTIC
@@ -256,16 +237,12 @@ class SettingsUpdate(BaseModel):
     @field_validator("whatsapp_phone")
     @classmethod
     def validate_phone(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None:
-            return _validate_phone(v)
-        return v
+        return _validate_phone(v) if v is not None else v
 
     @field_validator("store_name", "currency")
     @classmethod
     def sanitize_settings(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None:
-            return _sanitize_text(v)
-        return v
+        return _sanitize_text(v) if v is not None else v
 
 # =============================================================================
 # APPLICATION FASTAPI
@@ -278,9 +255,6 @@ app = FastAPI(
     openapi_url=None
 )
 
-# -----------------------------------------------------------------------------
-# MIDDLEWARE: En-têtes de sécurité HTTP
-# -----------------------------------------------------------------------------
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
@@ -294,10 +268,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 app.add_middleware(SecurityHeadersMiddleware)
-
-# -----------------------------------------------------------------------------
-# CORS
-# -----------------------------------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -315,43 +285,48 @@ def health():
 
 @app.get("/api/categories", dependencies=[Depends(rate_limit_public)])
 def get_categories():
-    db = get_db()
-    cats = list(db["categories"].find({}, {"_id": 0}))
-    return cats
+    sb = get_supabase()
+    result = sb.table("categories").select("id, name").execute()
+    return result.data or []
 
 @app.get("/api/products", dependencies=[Depends(rate_limit_public)])
 def get_products(
     category: Optional[str] = Query(None, max_length=80),
     q:        Optional[str] = Query(None, max_length=MAX_SEARCH_QUERY_LEN)
 ):
-    db = get_db()
-    query_filter = {}
+    sb = get_supabase()
+    query = sb.table("products").select(
+        "id, title, category, description, price, discount_percent, images, stock, is_featured, likes"
+    ).order("created_at", desc=True)
+
     if category and category != "all":
         safe_cat = _sanitize_text(category)
-        query_filter["category"] = safe_cat
+        query = query.eq("category", safe_cat)
+
     if q:
-        query_str = _sanitize_text(q)
-        query_filter["$or"] = [
-            {"title":       {"$regex": re.escape(query_str), "$options": "i"}},
-            {"description": {"$regex": re.escape(query_str), "$options": "i"}},
-        ]
-    products = list(db["products"].find(query_filter, {"_id": 0}).sort("_created_at", -1))
-    return products
+        safe_q = _sanitize_text(q)
+        query = query.or_(f"title.ilike.%{safe_q}%,description.ilike.%{safe_q}%")
+
+    result = query.execute()
+    return result.data or []
 
 @app.get("/api/products/{product_id}", dependencies=[Depends(rate_limit_public)])
 def get_product_by_id(product_id: str):
     if not re.match(r'^[a-zA-Z0-9_-]{1,80}$', product_id):
         raise HTTPException(status_code=400, detail="Identifiant produit invalide.")
-    db = get_db()
-    prod = db["products"].find_one({"id": product_id}, {"_id": 0})
-    if not prod:
+    sb = get_supabase()
+    result = sb.table("products").select(
+        "id, title, category, description, price, discount_percent, images, stock, is_featured, likes"
+    ).eq("id", product_id).execute()
+    if not result.data:
         raise HTTPException(status_code=404, detail="Produit non trouvé.")
-    return prod
+    return result.data[0]
 
 @app.get("/api/settings", dependencies=[Depends(rate_limit_public)])
 def get_settings():
-    db = get_db()
-    s = db["settings"].find_one({"key": "main"}, {"_id": 0}) or {}
+    sb = get_supabase()
+    result = sb.table("settings").select("whatsapp_phone, store_name, currency").eq("key", "main").execute()
+    s = result.data[0] if result.data else {}
     return {
         "whatsapp_phone": s.get("whatsapp_phone", "22373022223"),
         "store_name":     s.get("store_name", "Faye Store"),
@@ -384,74 +359,75 @@ def admin_logout(token: str = Depends(_get_admin_token)):
 # =============================================================================
 @app.post("/api/categories", status_code=status.HTTP_201_CREATED)
 def create_category(category: CategoryCreate, _token: str = Depends(_get_admin_token)):
-    db = get_db()
-    if db["categories"].count_documents({}) >= MAX_CATEGORIES_TOTAL:
+    sb = get_supabase()
+    count = len(sb.table("categories").select("id").execute().data or [])
+    if count >= MAX_CATEGORIES_TOTAL:
         raise HTTPException(status_code=400, detail="Nombre maximum de catégories atteint.")
     cat_id = category.id or re.sub(r'[^a-z0-9-]', '', category.name.lower().replace(" ", "-"))[:60]
     if not cat_id:
         raise HTTPException(status_code=400, detail="Nom de catégorie invalide.")
-    if db["categories"].find_one({"id": cat_id}):
+    existing = sb.table("categories").select("id").eq("id", cat_id).execute()
+    if existing.data:
         raise HTTPException(status_code=400, detail="Catégorie déjà existante.")
     new_cat = {"id": cat_id, "name": category.name}
-    db["categories"].insert_one(new_cat)
-    new_cat.pop("_id", None)
-    return new_cat
+    result = sb.table("categories").insert(new_cat).execute()
+    return result.data[0] if result.data else new_cat
 
 @app.delete("/api/categories/{category_id}")
 def delete_category(category_id: str, _token: str = Depends(_get_admin_token)):
     if not re.match(r'^[a-zA-Z0-9_-]{1,80}$', category_id):
         raise HTTPException(status_code=400, detail="Identifiant catégorie invalide.")
-    db = get_db()
-    db["categories"].delete_one({"id": category_id})
+    sb = get_supabase()
+    sb.table("categories").delete().eq("id", category_id).execute()
     return {"message": "Catégorie supprimée avec succès."}
 
 @app.post("/api/products", status_code=status.HTTP_201_CREATED)
 def create_product(product: ProductCreate, _token: str = Depends(_get_admin_token)):
-    db = get_db()
-    if db["products"].count_documents({}) >= MAX_PRODUCTS_TOTAL:
+    sb = get_supabase()
+    count = len(sb.table("products").select("id").execute().data or [])
+    if count >= MAX_PRODUCTS_TOTAL:
         raise HTTPException(status_code=400, detail="Nombre maximum de produits atteint.")
     new_id = f"prod-{int(time.time())}-{os.urandom(3).hex()}"
     new_prod = product.model_dump()
-    new_prod["id"]          = new_id
-    new_prod["likes"]       = 0
-    new_prod["_created_at"] = time.time()
-    db["products"].insert_one(new_prod)
-    new_prod.pop("_id", None)
-    new_prod.pop("_created_at", None)
+    new_prod["id"]    = new_id
+    new_prod["likes"] = 0
+    result = sb.table("products").insert(new_prod).execute()
+    created = result.data[0] if result.data else new_prod
+    _clean_product(created)
     logger.info(f"Produit créé: {new_id}")
-    return new_prod
+    return created
 
 @app.put("/api/products/{product_id}")
 def update_product(product_id: str, product: ProductCreate, _token: str = Depends(_get_admin_token)):
     if not re.match(r'^[a-zA-Z0-9_-]{1,80}$', product_id):
         raise HTTPException(status_code=400, detail="Identifiant produit invalide.")
-    db = get_db()
-    existing = db["products"].find_one({"id": product_id})
-    if not existing:
+    sb = get_supabase()
+    existing = sb.table("products").select("id, likes").eq("id", product_id).execute()
+    if not existing.data:
         raise HTTPException(status_code=404, detail="Produit non trouvé.")
     updated = product.model_dump()
-    updated["id"]          = product_id
-    updated["likes"]       = existing.get("likes", 0)
-    updated["_created_at"] = existing.get("_created_at", time.time())
-    db["products"].replace_one({"id": product_id}, updated)
-    updated.pop("_id", None)
-    updated.pop("_created_at", None)
-    return updated
+    updated["id"]    = product_id
+    updated["likes"] = existing.data[0].get("likes", 0)
+    result = sb.table("products").update(updated).eq("id", product_id).execute()
+    prod = result.data[0] if result.data else updated
+    _clean_product(prod)
+    return prod
 
 @app.delete("/api/products/{product_id}")
 def delete_product(product_id: str, _token: str = Depends(_get_admin_token)):
     if not re.match(r'^[a-zA-Z0-9_-]{1,80}$', product_id):
         raise HTTPException(status_code=400, detail="Identifiant produit invalide.")
-    db = get_db()
-    result = db["products"].delete_one({"id": product_id})
-    if result.deleted_count == 0:
+    sb = get_supabase()
+    existing = sb.table("products").select("id").eq("id", product_id).execute()
+    if not existing.data:
         raise HTTPException(status_code=404, detail="Produit non trouvé.")
+    sb.table("products").delete().eq("id", product_id).execute()
     logger.info(f"Produit supprimé: {product_id}")
     return {"message": "Produit supprimé avec succès."}
 
 @app.post("/api/settings")
 def update_settings(settings: SettingsUpdate, _token: str = Depends(_get_admin_token)):
-    db = get_db()
+    sb = get_supabase()
     update_fields = {}
     if settings.whatsapp_phone is not None:
         update_fields["whatsapp_phone"] = settings.whatsapp_phone
@@ -459,12 +435,9 @@ def update_settings(settings: SettingsUpdate, _token: str = Depends(_get_admin_t
         update_fields["store_name"] = settings.store_name
     if settings.currency is not None:
         update_fields["currency"] = settings.currency
-    db["settings"].update_one(
-        {"key": "main"},
-        {"$set": update_fields},
-        upsert=True
-    )
-    s = db["settings"].find_one({"key": "main"}, {"_id": 0}) or {}
+    sb.table("settings").upsert({"key": "main", **update_fields}).execute()
+    result = sb.table("settings").select("whatsapp_phone, store_name, currency").eq("key", "main").execute()
+    s = result.data[0] if result.data else {}
     return {
         "whatsapp_phone": s.get("whatsapp_phone", "22373022223"),
         "store_name":     s.get("store_name", "Faye Store"),
@@ -472,7 +445,7 @@ def update_settings(settings: SettingsUpdate, _token: str = Depends(_get_admin_t
     }
 
 # =============================================================================
-# ROUTE DE LIKE
+# ROUTE DE LIKE (semi-publique)
 # =============================================================================
 @app.post("/api/products/{product_id}/like", dependencies=[Depends(rate_limit_write)])
 def toggle_like_product(
@@ -481,13 +454,13 @@ def toggle_like_product(
 ):
     if not re.match(r'^[a-zA-Z0-9_-]{1,80}$', product_id):
         raise HTTPException(status_code=400, detail="Identifiant produit invalide.")
-    db = get_db()
-    prod = db["products"].find_one({"id": product_id})
-    if not prod:
+    sb = get_supabase()
+    existing = sb.table("products").select("id, likes").eq("id", product_id).execute()
+    if not existing.data:
         raise HTTPException(status_code=404, detail="Produit non trouvé.")
-    current_likes = prod.get("likes", 0)
+    current_likes = existing.data[0].get("likes", 0)
     new_likes = current_likes + 1 if action == "like" else max(0, current_likes - 1)
-    db["products"].update_one({"id": product_id}, {"$set": {"likes": new_likes}})
+    sb.table("products").update({"likes": new_likes}).eq("id", product_id).execute()
     return {"id": product_id, "likes": new_likes}
 
 # =============================================================================
@@ -503,8 +476,11 @@ async def generic_exception_handler(request: Request, exc: Exception):
 # =============================================================================
 @app.on_event("startup")
 def startup_event():
-    logger.info("Démarrage Faye Store API v3.0 (MongoDB)")
-    _ensure_defaults()
+    logger.info("Démarrage Faye Store API v3.0 (Supabase)")
+    if SUPABASE_URL and SUPABASE_KEY:
+        _ensure_defaults()
+    else:
+        logger.warning("SUPABASE_URL/SUPABASE_KEY non configurés — base de données indisponible.")
 
 if __name__ == "__main__":
     import uvicorn
