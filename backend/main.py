@@ -12,6 +12,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 from starlette.middleware.base import BaseHTTPMiddleware
+from dotenv import load_dotenv
+load_dotenv()
 
 # =============================================================================
 # LOGGING SÉCURISÉ
@@ -36,9 +38,8 @@ ALLOWED_ORIGINS_RAW = os.environ.get(
 ALLOWED_ORIGINS = [o.strip() for o in ALLOWED_ORIGINS_RAW.split(",") if o.strip()]
 ADMIN_TOKEN_TTL = int(os.environ.get("ADMIN_TOKEN_TTL", "3600"))
 
-# Variables Supabase
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")  # service_role key
+# Variable de connexion Neon PostgreSQL
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
 # =============================================================================
 # LIMITES DE TAILLE
@@ -64,23 +65,24 @@ def get_supabase():
     global _supabase_client
     if _supabase_client is not None:
         return _supabase_client
-    if not SUPABASE_URL or not SUPABASE_KEY:
+    if not DATABASE_URL:
         raise HTTPException(
             status_code=503,
             detail="Base de données non configurée. Contactez l'administrateur."
         )
     try:
-        from supabase import create_client
-        _supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        from neon_client import NeonClient
+        _supabase_client = NeonClient(DATABASE_URL)
         return _supabase_client
     except Exception as e:
-        logger.error(f"Erreur connexion Supabase: {e}")
+        logger.error(f"Erreur connexion Neon: {e}")
         raise HTTPException(status_code=503, detail="Erreur de connexion à la base de données.")
 
 def _ensure_defaults():
     """Initialise les données par défaut si les tables sont vides."""
     try:
-        sb = get_supabase()
+        from neon_client import NeonClient
+        sb = NeonClient(DATABASE_URL)
         # Catégories par défaut
         cats = sb.table("categories").select("id").execute()
         if not cats.data:
@@ -102,10 +104,10 @@ def _ensure_defaults():
                 "currency": "FCFA"
             }).execute()
             logger.info("Paramètres par défaut créés.")
-    except HTTPException:
-        raise
+        logger.info("Neon PostgreSQL initialisé avec succès.")
     except Exception as e:
-        logger.error(f"Erreur init defaults: {e}")
+        # Ne jamais crasher au démarrage — l'app reste disponible
+        logger.error(f"Erreur init Neon: {e}")
 
 # =============================================================================
 # IN-MEMORY RATE LIMITER (par IP)
@@ -476,11 +478,11 @@ async def generic_exception_handler(request: Request, exc: Exception):
 # =============================================================================
 @app.on_event("startup")
 def startup_event():
-    logger.info("Démarrage Faye Store API v3.0 (Supabase)")
-    if SUPABASE_URL and SUPABASE_KEY:
+    logger.info("Démarrage Faye Store API v3.0 (Neon PostgreSQL)")
+    if DATABASE_URL:
         _ensure_defaults()
     else:
-        logger.warning("SUPABASE_URL/SUPABASE_KEY non configurés — base de données indisponible.")
+        logger.warning("DATABASE_URL non configuré — base de données indisponible.")
 
 if __name__ == "__main__":
     import uvicorn
