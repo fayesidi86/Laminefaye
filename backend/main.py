@@ -1,11 +1,16 @@
 import os
 import re
+import sys
 import logging
 import secrets
 import hashlib
 import time
 from typing import List, Optional
 from collections import defaultdict
+
+# Ensure the backend directory is in sys.path so that
+# neon_client.py is importable whether running from root or from backend/
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from fastapi import FastAPI, HTTPException, Query, status, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
