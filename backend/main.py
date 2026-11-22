@@ -104,7 +104,7 @@ def _ensure_defaults():
         if not settings.data:
             sb.table("settings").insert({
                 "key": "main",
-                "whatsapp_phone": "22373022223",
+                "whatsapp_phone": "22377219028",
                 "store_name": "Faye Store",
                 "currency": "FCFA"
             }).execute()
@@ -335,7 +335,7 @@ def get_settings():
     result = sb.table("settings").select("whatsapp_phone, store_name, currency").eq("key", "main").execute()
     s = result.data[0] if result.data else {}
     return {
-        "whatsapp_phone": s.get("whatsapp_phone", "22373022223"),
+        "whatsapp_phone": s.get("whatsapp_phone", "22377219028"),
         "store_name":     s.get("store_name", "Faye Store"),
         "currency":       s.get("currency", "FCFA"),
     }
@@ -446,7 +446,7 @@ def update_settings(settings: SettingsUpdate, _token: str = Depends(_get_admin_t
     result = sb.table("settings").select("whatsapp_phone, store_name, currency").eq("key", "main").execute()
     s = result.data[0] if result.data else {}
     return {
-        "whatsapp_phone": s.get("whatsapp_phone", "22373022223"),
+        "whatsapp_phone": s.get("whatsapp_phone", "22377219028"),
         "store_name":     s.get("store_name", "Faye Store"),
         "currency":       s.get("currency", "FCFA"),
     }

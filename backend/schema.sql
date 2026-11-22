@@ -44,7 +44,7 @@ INSERT INTO categories (id, name) VALUES
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO settings (key, whatsapp_phone, store_name, currency)
-VALUES ('main', '22373022223', 'Faye Store', 'FCFA')
+VALUES ('main', '22377219028', 'Faye Store', 'FCFA')
 ON CONFLICT (key) DO NOTHING;
 
 -- ============================================================
